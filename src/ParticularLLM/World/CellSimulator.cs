@@ -8,6 +8,14 @@ public class CellSimulator
 {
     private readonly List<int> activeChunks = new();
 
+    private BeltManager? _beltManager;
+    private LiftManager? _liftManager;
+    private WallManager? _wallManager;
+
+    public void SetBeltManager(BeltManager manager) => _beltManager = manager;
+    public void SetLiftManager(LiftManager manager) => _liftManager = manager;
+    public void SetWallManager(WallManager manager) => _wallManager = manager;
+
     public void Simulate(CellWorld world)
     {
         world.currentFrame++;
@@ -30,9 +38,9 @@ public class CellSimulator
             cells = world.cells,
             chunks = world.chunks,
             materials = world.materials,
-            liftTiles = null,
-            beltTiles = null,
-            wallTiles = null,
+            liftTiles = _liftManager?.LiftTiles,
+            beltTiles = _beltManager?.GetBeltTiles(),
+            wallTiles = _wallManager?.WallTiles,
             width = world.width,
             height = world.height,
             chunksX = world.chunksX,
@@ -48,6 +56,10 @@ public class CellSimulator
         // Simulate all active chunks sequentially
         foreach (int chunkIndex in activeChunks)
             logic.SimulateChunk(chunkIndex);
+
+        // Simulate belts after cell simulation
+        if (_beltManager != null)
+            _beltManager.SimulateBelts(world, world.currentFrame);
 
         // Reset dirty state
         world.ResetDirtyState();
