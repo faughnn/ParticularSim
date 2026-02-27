@@ -85,13 +85,13 @@ public static class Materials
         };
         defs[Sand] = new MaterialDef
         {
-            density = 128, slideResistance = 0,
+            density = 128, slideResistance = 0, restitution = 77,
             behaviour = BehaviourType.Powder, flags = MaterialFlags.None,
             baseColour = new Color32(194, 178, 128, 255), colourVariation = 15,
         };
         defs[Water] = new MaterialDef
         {
-            density = 64, slideResistance = 5,
+            density = 64, slideResistance = 0, restitution = 102,
             behaviour = BehaviourType.Liquid, flags = MaterialFlags.ConductsHeat,
             boilTemp = 100, materialOnBoil = Steam,
             baseColour = new Color32(32, 64, 192, 255), colourVariation = 10,
@@ -99,7 +99,7 @@ public static class Materials
         };
         defs[Oil] = new MaterialDef
         {
-            density = 48, slideResistance = 15,
+            density = 48, slideResistance = 0, restitution = 64,
             behaviour = BehaviourType.Liquid, flags = MaterialFlags.Flammable,
             ignitionTemp = 80, materialOnBurn = Smoke,
             baseColour = new Color32(80, 60, 20, 255), colourVariation = 5,
@@ -111,6 +111,48 @@ public static class Materials
             behaviour = BehaviourType.Gas, flags = MaterialFlags.ConductsHeat,
             freezeTemp = 50, materialOnFreeze = Water,
             baseColour = new Color32(200, 200, 220, 255), colourVariation = 20,
+        };
+        defs[IronOre] = new MaterialDef
+        {
+            density = 200, slideResistance = 20, restitution = 50,
+            behaviour = BehaviourType.Powder, flags = MaterialFlags.ConductsHeat,
+            meltTemp = 200, materialOnMelt = MoltenIron,
+            baseColour = new Color32(120, 80, 60, 255), colourVariation = 10,
+        };
+        defs[MoltenIron] = new MaterialDef
+        {
+            density = 200, slideResistance = 0, restitution = 25,
+            behaviour = BehaviourType.Liquid, flags = MaterialFlags.ConductsHeat,
+            freezeTemp = 150, materialOnFreeze = Iron,
+            baseColour = new Color32(255, 120, 50, 255), colourVariation = 5,
+            dispersionRate = 3,
+        };
+        defs[Iron] = new MaterialDef
+        {
+            density = 255,
+            behaviour = BehaviourType.Static, flags = MaterialFlags.ConductsHeat,
+            meltTemp = 200, materialOnMelt = MoltenIron,
+            baseColour = new Color32(180, 180, 190, 255), colourVariation = 5,
+        };
+        defs[Coal] = new MaterialDef
+        {
+            density = 100, slideResistance = 10, restitution = 40,
+            behaviour = BehaviourType.Powder,
+            flags = MaterialFlags.Flammable | MaterialFlags.ConductsHeat,
+            ignitionTemp = 180, materialOnBurn = Ash,
+            baseColour = new Color32(30, 30, 30, 255), colourVariation = 5,
+        };
+        defs[Ash] = new MaterialDef
+        {
+            density = 15, slideResistance = 0, restitution = 26,
+            behaviour = BehaviourType.Powder, flags = MaterialFlags.None,
+            baseColour = new Color32(160, 160, 155, 255), colourVariation = 8,
+        };
+        defs[Smoke] = new MaterialDef
+        {
+            density = 2, slideResistance = 0,
+            behaviour = BehaviourType.Gas, flags = MaterialFlags.None,
+            baseColour = new Color32(100, 100, 110, 255), colourVariation = 15,
         };
         defs[Belt] = new MaterialDef
         {
@@ -144,7 +186,7 @@ public static class Materials
         };
         defs[Dirt] = new MaterialDef
         {
-            density = 140, slideResistance = 50,
+            density = 140, slideResistance = 50, restitution = 102,
             behaviour = BehaviourType.Powder, flags = MaterialFlags.None,
             baseColour = new Color32(139, 90, 43, 255), colourVariation = 12,
         };

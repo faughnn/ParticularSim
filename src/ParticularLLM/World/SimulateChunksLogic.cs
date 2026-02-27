@@ -246,8 +246,8 @@ public class SimulateChunksLogic
         // On collision, transfer momentum to diagonal movement
         if (collided && cell.velocityY > 1)
         {
-            // Retain 70% of velocity
-            int remainingVelocity = cell.velocityY * 7 / 10;
+            // Retain restitution% of velocity (mat.restitution 0-255 → 0%-100%)
+            int remainingVelocity = cell.velocityY * mat.restitution / 255;
 
             if (remainingVelocity > 0)
             {
@@ -279,37 +279,33 @@ public class SimulateChunksLogic
             }
         }
 
-        // ===== PHASE 2: Diagonal movement using velocityX =====
-        if (cell.velocityX != 0)
+        // ===== PHASE 2: Unified trace along velocity vector =====
+        if (cell.velocityX != 0 || cell.velocityY != 0)
         {
-            int dx = cell.velocityX > 0 ? 1 : -1;
-            int maxDiagonalDist = Math.Abs(cell.velocityX);
-
-            // Trace diagonal path
-            int diagonalDist = TraceDiagonalPath(x, y, dx, maxDiagonalDist, mat.density);
-
-            if (diagonalDist > 0)
+            var (fx, fy, hit) = TraceVelocity(x, y, cell.velocityX, cell.velocityY, mat.density);
+            if (fx != x || fy != y)
             {
-                // Apply friction: 87.5% retention
-                cell.velocityX = (sbyte)(cell.velocityX * 7 / 8);
-                cell.velocityY = (sbyte)(cell.velocityY * 7 / 8);
-
-                MoveCell(x, y, x + dx * diagonalDist, y + diagonalDist, cell);
+                if (hit)
+                {
+                    // Collision: apply restitution
+                    cell.velocityX = (sbyte)(cell.velocityX * mat.restitution / 255);
+                    cell.velocityY = (sbyte)(cell.velocityY * mat.restitution / 255);
+                }
+                else
+                {
+                    // No collision: apply drag (87.5% retention)
+                    cell.velocityX = (sbyte)(cell.velocityX * 7 / 8);
+                    cell.velocityY = (sbyte)(cell.velocityY * 7 / 8);
+                }
+                MoveCell(x, y, fx, fy, cell);
                 return;
             }
 
-            // Blocked - try opposite direction
-            dx = -dx;
-            diagonalDist = TraceDiagonalPath(x, y, dx, maxDiagonalDist, mat.density);
-
-            if (diagonalDist > 0)
+            // Couldn't move at all — apply restitution to dampen
+            if (hit)
             {
-                // Reverse direction and apply friction
-                cell.velocityX = (sbyte)(-cell.velocityX * 7 / 8);
-                cell.velocityY = (sbyte)(cell.velocityY * 7 / 8);
-
-                MoveCell(x, y, x + dx * diagonalDist, y + diagonalDist, cell);
-                return;
+                cell.velocityX = (sbyte)(cell.velocityX * mat.restitution / 255);
+                cell.velocityY = (sbyte)(cell.velocityY * mat.restitution / 255);
             }
         }
 
@@ -522,6 +518,66 @@ public class SimulateChunksLogic
             }
         }
         return bestDist;
+    }
+
+    /// <summary>
+    /// Bresenham-style ray-march along the velocity vector (vx, vy).
+    /// Returns the furthest reachable position and whether a collision occurred.
+    /// Traces a line from (startX, startY) toward (startX+vx, startY+vy), checking
+    /// each cell along the Bresenham path.
+    /// </summary>
+    private (int finalX, int finalY, bool hit) TraceVelocity(
+        int startX, int startY, int vx, int vy, byte density)
+    {
+        int ax = Math.Abs(vx);
+        int ay = Math.Abs(vy);
+        int sx = vx > 0 ? 1 : (vx < 0 ? -1 : 0);
+        int sy = vy > 0 ? 1 : (vy < 0 ? -1 : 0);
+
+        int cx = startX, cy = startY;
+        int lastGoodX = startX, lastGoodY = startY;
+
+        if (ax >= ay)
+        {
+            // X-dominant: step X every iteration, step Y on error overflow
+            int err = ax / 2;
+            for (int i = 0; i < ax; i++)
+            {
+                cx += sx;
+                err -= ay;
+                if (err < 0)
+                {
+                    cy += sy;
+                    err += ax;
+                }
+                if (!CanMoveTo(cx, cy, density))
+                    return (lastGoodX, lastGoodY, true);
+                lastGoodX = cx;
+                lastGoodY = cy;
+            }
+        }
+        else
+        {
+            // Y-dominant: step Y every iteration, step X on error overflow
+            int err = ay / 2;
+            for (int i = 0; i < ay; i++)
+            {
+                cy += sy;
+                err -= ax;
+                if (err < 0)
+                {
+                    cx += sx;
+                    err += ay;
+                }
+                if (!CanMoveTo(cx, cy, density))
+                    return (lastGoodX, lastGoodY, true);
+                lastGoodX = cx;
+                lastGoodY = cy;
+            }
+        }
+
+        bool hit = (lastGoodX != startX + vx || lastGoodY != startY + vy);
+        return (lastGoodX, lastGoodY, hit);
     }
 
     // Trace diagonal path downward (45 degrees) - used for powder momentum

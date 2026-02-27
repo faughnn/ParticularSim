@@ -38,7 +38,7 @@ public struct MaterialDef
     public byte materialOnBoil;
     public Color32 baseColour;
     public byte colourVariation;
-    public byte dispersionRate;
+    public byte dispersionRate;  // Liquid spread probability (0-255). Higher = faster horizontal movement.
     public byte emission;
-    public byte padding3;
+    public byte restitution;     // Energy retained on collision (0-255). 0=dead stop, 255=full bounce.
 }

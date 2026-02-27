@@ -28,6 +28,20 @@ public class SimulationFixture : IDisposable
                 World.SetCell(x + dx, y + dy, materialId);
     }
 
+    public void SetWithVelocity(int x, int y, byte materialId, sbyte vx, sbyte vy)
+    {
+        if (x < 0 || x >= World.width || y < 0 || y >= World.height) return;
+        int index = y * World.width + x;
+        World.cells[index] = new Cell
+        {
+            materialId = materialId,
+            velocityX = vx,
+            velocityY = vy,
+            temperature = 20,
+        };
+        World.MarkDirty(x, y);
+    }
+
     public byte Get(int x, int y) => World.GetCell(x, y);
 
     public Cell GetCell(int x, int y)
