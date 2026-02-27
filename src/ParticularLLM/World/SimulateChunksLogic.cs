@@ -42,7 +42,7 @@ public class SimulateChunksLogic
     public int gravity;      // Gravity applied when accumulator overflows (usually 1)
     public int maxVelocity;  // Maximum velocity in cells/frame (usually 16)
     public byte liftForce;   // Lift force (default 20, gravity is 17 so net is -3 upward)
-    public byte liftExitLateralForce; // Lateral force at lift exit row (fountain effect)
+    public short liftExitLateralForce; // Lateral force at lift exit row (fountain effect)
 
     private const int ChunkSize = 64;
 
@@ -182,22 +182,7 @@ public class SimulateChunksLogic
                 int lateralSign = (2 * localX - 7);
                 int lateralForceValue = lateralSign * liftExitLateralForce;
 
-                int newFracX = cell.velocityFracX + lateralForceValue;
-
-                if (newFracX >= 256)
-                {
-                    cell.velocityFracX = (byte)(newFracX - 256);
-                    cell.velocityX = (sbyte)Math.Min(cell.velocityX + 1, maxVelocity);
-                }
-                else if (newFracX < 0)
-                {
-                    cell.velocityFracX = (byte)(newFracX + 256);
-                    cell.velocityX = (sbyte)Math.Max(cell.velocityX - 1, -maxVelocity);
-                }
-                else
-                {
-                    cell.velocityFracX = (byte)newFracX;
-                }
+                ApplyFractionalForceX(ref cell, lateralForceValue);
             }
         }
 
@@ -220,7 +205,8 @@ public class SimulateChunksLogic
 
             if (targetY > y)
             {
-                MoveCell(x, y, x, targetY, cell);
+                int finalX = ApplyHorizontalVelocity(x, targetY, ref cell, mat.density);
+                MoveCell(x, y, finalX, targetY, cell);
                 return;
             }
         }
@@ -231,7 +217,8 @@ public class SimulateChunksLogic
             // and enables density displacement at rest (e.g., sand sinking through water).
             if (CanMoveTo(x, y + 1, mat.density))
             {
-                MoveCell(x, y, x, y + 1, cell);
+                int finalX = ApplyHorizontalVelocity(x, y + 1, ref cell, mat.density);
+                MoveCell(x, y, finalX, y + 1, cell);
                 return;
             }
         }
@@ -250,7 +237,8 @@ public class SimulateChunksLogic
 
             if (targetY < y)
             {
-                MoveCell(x, y, x, targetY, cell);
+                int finalX = ApplyHorizontalVelocity(x, targetY, ref cell, mat.density);
+                MoveCell(x, y, finalX, targetY, cell);
                 return;
             }
         }
@@ -416,22 +404,7 @@ public class SimulateChunksLogic
                 int lateralSign = (2 * localX - 7);
                 int lateralForceValue = lateralSign * liftExitLateralForce;
 
-                int newFracX = cell.velocityFracX + lateralForceValue;
-
-                if (newFracX >= 256)
-                {
-                    cell.velocityFracX = (byte)(newFracX - 256);
-                    cell.velocityX = (sbyte)Math.Min(cell.velocityX + 1, maxVelocity);
-                }
-                else if (newFracX < 0)
-                {
-                    cell.velocityFracX = (byte)(newFracX + 256);
-                    cell.velocityX = (sbyte)Math.Max(cell.velocityX - 1, -maxVelocity);
-                }
-                else
-                {
-                    cell.velocityFracX = (byte)newFracX;
-                }
+                ApplyFractionalForceX(ref cell, lateralForceValue);
             }
         }
 
@@ -451,7 +424,8 @@ public class SimulateChunksLogic
             // Enables density displacement at rest (e.g., water on top of oil sorts itself).
             if (CanMoveTo(x, y + 1, mat.density))
             {
-                MoveCell(x, y, x, y + 1, cell);
+                int finalX = ApplyHorizontalVelocity(x, y + 1, ref cell, mat.density);
+                MoveCell(x, y, finalX, y + 1, cell);
                 return;
             }
             // Also try diagonal fall with no velocity
@@ -567,6 +541,57 @@ public class SimulateChunksLogic
         return traveled;
     }
 
+    // Apply a fractional force to the X-axis accumulator, handling multiple overflows/underflows.
+    // Large forces (e.g., lift exit lateral force of ±840) can cause multiple 256-overflows
+    // per frame, so we compute the number of velocity increments via division.
+    private void ApplyFractionalForceX(ref Cell cell, int force)
+    {
+        int newFracX = cell.velocityFracX + force;
+
+        if (newFracX >= 256)
+        {
+            int overflows = newFracX / 256;
+            cell.velocityFracX = (byte)(newFracX - overflows * 256);
+            cell.velocityX = (sbyte)Math.Min(cell.velocityX + overflows, maxVelocity);
+        }
+        else if (newFracX < 0)
+        {
+            int absVal = -newFracX;
+            int underflows = (absVal + 255) / 256;
+            cell.velocityFracX = (byte)(newFracX + underflows * 256);
+            cell.velocityX = (sbyte)Math.Max(cell.velocityX - underflows, -maxVelocity);
+        }
+        else
+        {
+            cell.velocityFracX = (byte)newFracX;
+        }
+    }
+
+    // Apply horizontal velocity at a target Y position during vertical movement.
+    // This ensures velocityX (e.g., from lift exit lateral force) is consumed
+    // during free-fall/rise, not just during Phase 2 diagonal movement.
+    private int ApplyHorizontalVelocity(int startX, int targetY, ref Cell cell, byte density)
+    {
+        if (cell.velocityX == 0)
+            return startX;
+
+        int dx = cell.velocityX > 0 ? 1 : -1;
+        int maxDist = Math.Abs(cell.velocityX);
+        int finalX = startX;
+
+        for (int d = 1; d <= maxDist; d++)
+        {
+            if (!CanMoveTo(startX + dx * d, targetY, density))
+                break;
+            finalX = startX + dx * d;
+        }
+
+        if (finalX != startX)
+            cell.velocityX = (sbyte)(cell.velocityX * 7 / 8);
+
+        return finalX;
+    }
+
     // Simple hash for randomization
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private uint HashPosition(int x, int y, ushort frame)
@@ -654,7 +679,8 @@ public class SimulateChunksLogic
 
         if (targetY > y)
         {
-            MoveCell(x, y, x, targetY, cell);
+            int finalX = ApplyHorizontalVelocity(x, targetY, ref cell, density);
+            MoveCell(x, y, finalX, targetY, cell);
             return true;
         }
         return false;
@@ -696,7 +722,8 @@ public class SimulateChunksLogic
 
         if (targetY < y)
         {
-            MoveCell(x, y, x, targetY, cell);
+            int finalX = ApplyHorizontalVelocity(x, targetY, ref cell, density);
+            MoveCell(x, y, finalX, targetY, cell);
             return true;
         }
         return false;

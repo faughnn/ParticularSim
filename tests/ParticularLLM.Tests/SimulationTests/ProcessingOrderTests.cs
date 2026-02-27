@@ -99,14 +99,15 @@ public class ProcessingOrderTests
         // Place sand inside the lift near the bottom
         sim.Set(34, 75, Materials.Sand);
 
-        // Track the sand's Y position over time — it should decrease (move up)
+        // Track the sand's Y position early — after exiting the lift, sand spreads
+        // horizontally and falls, so check while still rising.
         int initialY = 75;
-        sim.Step(100);
+        sim.Step(20);
 
-        // Find where the sand ended up
+        // Find where the sand ended up (search wider X range since lateral force applied)
         int sandY = -1;
         for (int y = 0; y < 128; y++)
-            for (int x = 30; x < 42; x++)
+            for (int x = 0; x < 128; x++)
                 if (sim.Get(x, y) == Materials.Sand)
                     sandY = y;
 
