@@ -15,6 +15,10 @@ public class CellSimulator
     private BeltManager? _beltManager;
     private LiftManager? _liftManager;
     private WallManager? _wallManager;
+    private readonly HeatTransferSystem _heatTransfer = new();
+
+    /// <summary>When true, heat diffusion runs each frame.</summary>
+    public bool EnableHeatTransfer { get; set; }
 
     /// <summary>
     /// When true, uses 4-pass checkerboard group ordering (matching Unity's parallel execution order).
@@ -69,9 +73,11 @@ public class CellSimulator
         }
         else
         {
-            // Flat sequential: all active chunks in index order
+            // Flat sequential: active chunks in bottom-to-top order.
+            // Bottom-to-top ensures falling cells cross into already-processed chunks,
+            // preventing double-processing without causing stutter.
             activeChunks.Clear();
-            for (int i = 0; i < world.chunks.Length; i++)
+            for (int i = world.chunks.Length - 1; i >= 0; i--)
             {
                 var chunk = world.chunks[i];
                 bool isActive = (chunk.flags & ChunkFlags.IsDirty) != 0
@@ -88,6 +94,10 @@ public class CellSimulator
         // Simulate belts after cell simulation
         if (_beltManager != null)
             _beltManager.SimulateBelts(world, world.currentFrame);
+
+        // Heat diffusion (after all movement, before next frame's simulation)
+        if (EnableHeatTransfer)
+            _heatTransfer.SimulateHeat(world);
 
         // Reset dirty state
         world.ResetDirtyState();

@@ -91,7 +91,7 @@ public static class Materials
         };
         defs[Water] = new MaterialDef
         {
-            density = 64, slideResistance = 0, restitution = 102,
+            density = 64, slideResistance = 5, restitution = 102,
             behaviour = BehaviourType.Liquid, flags = MaterialFlags.ConductsHeat,
             boilTemp = 100, materialOnBoil = Steam,
             baseColour = new Color32(32, 64, 192, 255), colourVariation = 10,
@@ -99,7 +99,7 @@ public static class Materials
         };
         defs[Oil] = new MaterialDef
         {
-            density = 48, slideResistance = 0, restitution = 64,
+            density = 48, slideResistance = 15, restitution = 64,
             behaviour = BehaviourType.Liquid, flags = MaterialFlags.Flammable,
             ignitionTemp = 80, materialOnBurn = Smoke,
             baseColour = new Color32(80, 60, 20, 255), colourVariation = 5,
@@ -186,7 +186,7 @@ public static class Materials
         };
         defs[Dirt] = new MaterialDef
         {
-            density = 140, slideResistance = 50, restitution = 102,
+            density = 140, slideResistance = 50, restitution = 51,
             behaviour = BehaviourType.Powder, flags = MaterialFlags.None,
             baseColour = new Color32(139, 90, 43, 255), colourVariation = 12,
         };
