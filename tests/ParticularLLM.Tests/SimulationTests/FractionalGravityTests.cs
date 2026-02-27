@@ -151,11 +151,8 @@ public class FractionalGravityTests
     [Fact]
     public void PreVelocity_SandFallsStraightIfWalled()
     {
-        // In a 1-wide channel, diagonal slide fails so sand tries direct down.
-        // With velocityY=0, Phase 1 doesn't move. Phase 2 (diagonal momentum) doesn't apply.
-        // Phase 3 tries dx-1 then dx+1 at y+1. If both blocked, sand is stuck.
-        // Actually: if both diagonals are blocked, it DOES stay put until velocity builds.
-        // This is interesting — sand in a 1-wide gap does NOT fall until accumulator overflows!
+        // In a 1-wide channel, diagonal slide fails but gravity still pulls down 1 cell/frame.
+        // Even at velocity 0, sand should fall straight down immediately.
         using var sim = new SimulationFixture();
 
         sim.Fill(31, 0, 1, 64, Materials.Stone); // Wall left
@@ -165,24 +162,22 @@ public class FractionalGravityTests
 
         var counts = sim.SnapshotMaterialCounts();
 
-        // After 1 frame: sand can't slide diagonally (walls), velocity is 0.
-        // Phase 3: CanMoveTo(31, 11) = stone = false, CanMoveTo(33, 11) = stone = false.
-        // Sand stays at (32, 10) but chunk stays dirty because air is below.
+        // After 1 frame: sand falls 1 cell straight down (zero-velocity gravity pull)
         sim.Step(1);
         InvariantChecker.AssertMaterialConservation(sim.World, counts);
 
         var pos = sim.FindMaterial(Materials.Sand);
         Assert.Single(pos);
         Assert.Equal(32, pos[0].x);
-        Assert.Equal(10, pos[0].y);
+        Assert.Equal(11, pos[0].y);
 
-        // After ~16 more frames, velocity overflows to 1, and sand falls via Phase 1
+        // After more frames, sand continues falling and accelerates
         sim.StepWithInvariants(20, counts);
 
         pos = sim.FindMaterial(Materials.Sand);
         Assert.Single(pos);
-        Assert.True(pos[0].y > 10,
-            $"Sand in walled channel should eventually fall after velocity builds, but still at y={pos[0].y}");
+        Assert.True(pos[0].y > 20,
+            $"Sand should keep falling in walled channel, but is at y={pos[0].y}");
     }
 
     // ===== ACCELERATION PROFILE =====
@@ -225,14 +220,11 @@ public class FractionalGravityTests
     public void Accumulator_PreservedAcrossFrames()
     {
         // The fractional accumulator is NOT reset between frames.
-        // This means 17 is added each frame and the remainder persists.
-        // After 15 frames: 15*17 = 255. fracY = 255, velocityY = 0.
-        // Frame 16: 255 + 17 = 272 >= 256 → velocityY = 1, fracY = 16.
-        // Frame 17: 16 + 17 = 33, velocityY stays 1, fracY = 33.
-        // The accumulator keeps its remainder — it's truly fractional.
+        // After overflow at frame ~16, velocity becomes 1 and sand moves 1+1=2 cells/frame
+        // (1 from zero-velocity gravity pull + 1 from velocity).
+        // The key test: sand accelerates over time, proving the accumulator persists.
         using var sim = new SimulationFixture();
 
-        // Put sand in a narrow channel so it doesn't slide diagonally
         sim.Fill(31, 0, 1, 64, Materials.Stone);
         sim.Fill(33, 0, 1, 64, Materials.Stone);
         sim.Fill(0, 63, 64, 1, Materials.Stone);
@@ -240,21 +232,25 @@ public class FractionalGravityTests
 
         var counts = sim.SnapshotMaterialCounts();
 
-        // Run 15 frames — accumulator should be at 255 (15*17=255), no overflow yet
+        // Sand now falls 1 cell/frame even at velocity 0. After accumulator overflow,
+        // velocity becomes 1, and sand falls velocity cells via Phase 1 PLUS the zero-velocity
+        // pull doesn't apply (velocity > 0 takes the Phase 1 path).
+        // After 15 frames, sand should be at y=15 (1 cell/frame from zero-velocity pull).
         sim.StepWithInvariants(15, counts);
         var pos = sim.FindMaterial(Materials.Sand);
         Assert.Single(pos);
-        // Sand hasn't gained velocity yet (stuck in channel with walls on both sides)
-        Assert.Equal(0, pos[0].x != 32 ? -1 : pos[0].y); // Should still be at x=32
+        Assert.Equal(32, pos[0].x);
+        Assert.Equal(15, pos[0].y);
 
-        // Run 1 more frame — overflow! velocity becomes 1, sand falls 1 cell
-        sim.Step(1);
-        InvariantChecker.AssertMaterialConservation(sim.World, counts);
+        // After 30 more frames, velocity should have overflowed twice (vel=2),
+        // so sand covers more than 1 cell/frame on average
+        sim.StepWithInvariants(30, counts);
         var posAfter = sim.FindMaterial(Materials.Sand);
         Assert.Single(posAfter);
-        Assert.True(posAfter[0].y > pos[0].y,
-            $"Sand should start falling after accumulator overflow at frame 16, " +
-            $"was at y={pos[0].y}, now at y={posAfter[0].y}");
+        // 45 frames total: first ~16 at 1 cell/frame, then accelerating.
+        // With velocity growing to 2+, should be well past y=45
+        Assert.True(posAfter[0].y > 45,
+            $"Sand should accelerate past 1 cell/frame, but at y={posAfter[0].y} after 45 total frames");
     }
 
     // ===== COLLISION RESETS =====

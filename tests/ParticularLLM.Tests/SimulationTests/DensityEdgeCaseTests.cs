@@ -95,11 +95,11 @@ public class DensityEdgeCaseTests
     }
 
     [Fact]
-    public void WaterFallingDisplacesOil()
+    public void OilFloatsOnWater_AtRest()
     {
-        // Water (density 64) falling INTO oil (density 48) should displace it.
-        // Key: the water must be actively falling (velocityY > 0) to trigger displacement.
-        // Liquids at rest don't sort by density — only active movement causes displacement.
+        // Oil (density 48) placed below water (density 64) should sort itself:
+        // water sinks, oil rises. This should work even when starting at rest
+        // because gravity pulls liquids down even at velocity 0.
         using var sim = new SimulationFixture(64, 64);
 
         // Container
@@ -107,22 +107,20 @@ public class DensityEdgeCaseTests
         sim.Fill(36, 40, 1, 24, Materials.Stone);
         sim.Fill(28, 63, 9, 1, Materials.Stone);
 
-        // Oil pool sitting in container
-        sim.Fill(29, 58, 7, 5, Materials.Oil);
-
-        // Water dropped from height (will gain velocity and displace oil on impact)
-        sim.Fill(29, 30, 7, 3, Materials.Water);
+        // Oil below water (wrong order) — should sort with water sinking
+        sim.Fill(29, 58, 7, 4, Materials.Oil);    // oil at bottom
+        sim.Fill(29, 54, 7, 4, Materials.Water);   // water on top
 
         var counts = sim.SnapshotMaterialCounts();
         sim.StepUntilSettled();
         InvariantChecker.AssertMaterialConservation(sim.World, counts);
 
-        // Water (heavier) should end up below oil (lighter) after active displacement
+        // Water (heavier) should end up below oil (lighter)
         var (_, oilCOMY) = sim.CenterOfMass(Materials.Oil);
         var (_, waterCOMY) = sim.CenterOfMass(Materials.Water);
         Assert.True(waterCOMY > oilCOMY,
-            $"Water (COM Y={waterCOMY:F1}) falling into oil should sink below (COM Y={oilCOMY:F1})\n" +
-            WorldDump.DumpRegion(sim.World, 27, 40, 11, 24));
+            $"Water (COM Y={waterCOMY:F1}) should sink below oil (COM Y={oilCOMY:F1})\n" +
+            WorldDump.DumpRegion(sim.World, 27, 50, 11, 14));
     }
 
     // ===== DENSITY LAYERING INVARIANT =====

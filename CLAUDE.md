@@ -121,6 +121,13 @@ When implementing a new feature from the roadmap:
 8. **Re-derive English rules from the actual code** — the implementation may handle edge cases differently than the initial rules assumed. Update rules to match, or fix code if the behavior is wrong
 9. **Move to next roadmap item**
 
+### Tests Drive the Simulation
+
+Tests define what correct behavior looks like. When a test fails:
+- If the test expectation is **physically wrong** (e.g., expecting sand to fall up), fix the test.
+- If the simulation is **not doing what it should** (e.g., liquids at rest never sorting by density, materials escaping containers, conservation violations), **fix the simulation code**. Don't weaken the test to accommodate broken behavior.
+- When in doubt, ask: "What would a player expect to see?" If the sim doesn't match player expectations, the sim is wrong.
+
 ### Known Tradeoffs (Not Bugs)
 
 Document these so tests don't flag expected behavior:

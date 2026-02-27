@@ -224,7 +224,18 @@ public class SimulateChunksLogic
                 return;
             }
         }
-        else if (cell.velocityY < 0)
+        else if (cell.velocityY == 0)
+        {
+            // No velocity yet — gravity still pulls. Try to fall 1 cell.
+            // This ensures powder falls even before fractional accumulator overflows,
+            // and enables density displacement at rest (e.g., sand sinking through water).
+            if (CanMoveTo(x, y + 1, mat.density))
+            {
+                MoveCell(x, y, x, y + 1, cell);
+                return;
+            }
+        }
+        else // cell.velocityY < 0
         {
             // Rising (in lift) - trace path upward
             for (int checkY = y - 1; checkY >= targetY; checkY--)
@@ -431,6 +442,19 @@ public class SimulateChunksLogic
             if (TryFall(x, y, cell, mat.density))
                 return;
 
+            if (TryDiagonalFall(x, y, cell, mat.density))
+                return;
+        }
+        else if (cell.velocityY == 0)
+        {
+            // No velocity yet — gravity still pulls. Try to fall 1 cell.
+            // Enables density displacement at rest (e.g., water on top of oil sorts itself).
+            if (CanMoveTo(x, y + 1, mat.density))
+            {
+                MoveCell(x, y, x, y + 1, cell);
+                return;
+            }
+            // Also try diagonal fall with no velocity
             if (TryDiagonalFall(x, y, cell, mat.density))
                 return;
         }
