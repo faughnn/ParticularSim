@@ -14,15 +14,15 @@ namespace ParticularLLM.Tests.SimulationTests;
 /// 4. Phase 2 diagonal movement: trace 45-degree path (dx, dy) for up to |velocityX| steps.
 /// 5. After diagonal movement, friction applies: 87.5% (7/8) velocity retention.
 /// 6. If diagonal blocked in primary direction, try opposite direction.
-/// 7. Slide resistance: random check against mat.slideResistance before Phase 3 slide.
-///    Sand has slideResistance=0 (always slides), Dirt has slideResistance=50 (~20% chance to stick).
+/// 7. Slide resistance: random check against mat.stability before Phase 3 slide.
+///    Sand has stability=0 (always slides), Dirt has stability=50 (~20% chance to stick).
 /// 8. Phase 3 fallback: try (x±1, y+1) with alternating direction per (x+y+frame).
 /// 9. When stuck: velocity zeroes, chunk stays dirty if unsupported (air below).
 ///
 /// Known tradeoffs:
 /// - Momentum transfer is deterministic given position+frame, but the hash-based direction
 ///   means tests can't always predict which way the diagonal goes.
-/// - Dirt piles steeper than sand due to slideResistance=50 vs 0.
+/// - Dirt piles steeper than sand due to stability=50 vs 0.
 /// </summary>
 public class PowderCollisionTests
 {
@@ -157,7 +157,7 @@ public class PowderCollisionTests
     [Fact]
     public void Dirt_PilesSteeper_ThanSand()
     {
-        // Dirt (slideResistance=50) should form a steeper pile than sand (slideResistance=0).
+        // Dirt (stability=50) should form a steeper pile than sand (stability=0).
         using var sim = new SimulationFixture(128, 128);
 
         sim.Fill(0, 120, 128, 8, Materials.Stone);
@@ -207,7 +207,7 @@ public class PowderCollisionTests
     [Fact]
     public void Sand_ZeroSlideResistance_AlwaysSlides()
     {
-        // Sand has slideResistance=0, so Phase 3 slide check always passes.
+        // Sand has stability=0, so Phase 3 slide check always passes.
         // Single sand grain on a corner should always slide off.
         using var sim = new SimulationFixture(64, 64);
 

@@ -25,7 +25,7 @@ public static class MaterialFlags
 public struct MaterialDef
 {
     public byte density;
-    public byte slideResistance;
+    public byte stability;       // Powder: probability of refusing to topple (0=always slides, 255=never). Liquid: viscosity friction.
     public BehaviourType behaviour;
     public byte flags;
     public byte ignitionTemp;
@@ -38,7 +38,7 @@ public struct MaterialDef
     public byte materialOnBoil;
     public Color32 baseColour;
     public byte colourVariation;
-    public byte dispersionRate;  // Liquid spread probability (0-255). Higher = faster horizontal movement.
+    public byte spread;          // Liquid spread distance per frame. Higher = faster horizontal movement.
     public byte emission;
     public byte restitution;     // Energy retained on collision (0-255). 0=dead stop, 255=full bounce.
 }

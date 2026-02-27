@@ -11,19 +11,19 @@ namespace ParticularLLM.Tests.SimulationTests;
 /// 1. Liquid uses same fractional gravity accumulator as powder.
 /// 2. Falling liquid tries vertical fall, then diagonal fall.
 /// 3. When liquid can't fall, vertical momentum converts to horizontal spread.
-/// 4. Spread distance = dispersionRate + velocityBoost (|velocityY|/3 if was free-falling).
+/// 4. Spread distance = spread + velocityBoost (|velocityY|/3 if was free-falling).
 /// 5. Random ±1 offset on spread distance for natural look.
 /// 6. When landing from free-fall with velocityX=0, horizontal velocity set to ±4.
 /// 7. Primary spread direction follows velocityX; alternating hash if zero.
 /// 8. Liquid finds furthest reachable position in each direction.
 /// 9. Prefers primary direction on tie; reverses velocityX if secondary chosen.
 /// 10. Friction: 7/8 velocity retention on spread, /2 when stuck.
-/// 11. Water: density=64, dispersionRate=5, slideResistance=5.
-/// 12. Oil: density=48, dispersionRate=4, slideResistance=15.
+/// 11. Water: density=64, spread=5, stability=5.
+/// 12. Oil: density=48, spread=4, stability=15.
 ///
 /// Known tradeoffs:
 /// - Hash-based randomization means exact spread is position-dependent.
-/// - Water spreads further than oil (higher dispersionRate, lower slideResistance).
+/// - Water spreads further than oil (higher spread, lower stability).
 /// </summary>
 public class LiquidDispersionTests
 {
@@ -194,7 +194,7 @@ public class LiquidDispersionTests
     [Fact]
     public void Oil_SpreadsLessThanWater()
     {
-        // Oil (dispersionRate=4, slideResistance=15) spreads less than water (5, 5).
+        // Oil (spread=4, stability=15) spreads less than water (5, 5).
         // Liquid on a flat surface oscillates indefinitely, so we compare spread after a fixed
         // number of frames rather than waiting for settling.
         // Use a 512-wide world to prevent wall effects and run 300 frames.
@@ -234,7 +234,7 @@ public class LiquidDispersionTests
         }
         int waterSpread = waterMaxX - waterMinX + 1;
 
-        // Water should spread at least as much as oil (higher dispersionRate, lower slideResistance)
+        // Water should spread at least as much as oil (higher spread, lower stability)
         Assert.True(oilSpread <= waterSpread + 10,
             $"Oil spread ({oilSpread}) should be <= water spread ({waterSpread}) + tolerance");
     }

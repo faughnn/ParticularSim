@@ -73,59 +73,59 @@ public static class Materials
 
         defs[Air] = new MaterialDef
         {
-            density = 0, slideResistance = 0,
+            density = 0, stability = 0,
             behaviour = BehaviourType.Static, flags = MaterialFlags.None,
             baseColour = new Color32(20, 20, 30, 255), colourVariation = 0,
         };
         defs[Stone] = new MaterialDef
         {
-            density = 255, slideResistance = 0,
+            density = 255, stability = 0,
             behaviour = BehaviourType.Static, flags = MaterialFlags.ConductsHeat,
             baseColour = new Color32(100, 100, 105, 255), colourVariation = 10,
         };
         defs[Sand] = new MaterialDef
         {
-            density = 128, slideResistance = 0, restitution = 77,
+            density = 128, stability = 0, restitution = 77,
             behaviour = BehaviourType.Powder, flags = MaterialFlags.None,
             baseColour = new Color32(194, 178, 128, 255), colourVariation = 15,
         };
         defs[Water] = new MaterialDef
         {
-            density = 64, slideResistance = 5, restitution = 102,
+            density = 64, stability = 5, restitution = 102,
             behaviour = BehaviourType.Liquid, flags = MaterialFlags.ConductsHeat,
             boilTemp = 100, materialOnBoil = Steam,
             baseColour = new Color32(32, 64, 192, 255), colourVariation = 10,
-            dispersionRate = 5,
+            spread = 5,
         };
         defs[Oil] = new MaterialDef
         {
-            density = 48, slideResistance = 15, restitution = 64,
+            density = 48, stability = 15, restitution = 64,
             behaviour = BehaviourType.Liquid, flags = MaterialFlags.Flammable,
             ignitionTemp = 80, materialOnBurn = Smoke,
             baseColour = new Color32(80, 60, 20, 255), colourVariation = 5,
-            dispersionRate = 4,
+            spread = 4,
         };
         defs[Steam] = new MaterialDef
         {
-            density = 4, slideResistance = 2,
+            density = 4, stability = 2,
             behaviour = BehaviourType.Gas, flags = MaterialFlags.ConductsHeat,
             freezeTemp = 50, materialOnFreeze = Water,
             baseColour = new Color32(200, 200, 220, 255), colourVariation = 20,
         };
         defs[IronOre] = new MaterialDef
         {
-            density = 200, slideResistance = 20, restitution = 50,
+            density = 200, stability = 20, restitution = 50,
             behaviour = BehaviourType.Powder, flags = MaterialFlags.ConductsHeat,
             meltTemp = 200, materialOnMelt = MoltenIron,
             baseColour = new Color32(120, 80, 60, 255), colourVariation = 10,
         };
         defs[MoltenIron] = new MaterialDef
         {
-            density = 200, slideResistance = 0, restitution = 25,
+            density = 200, stability = 0, restitution = 25,
             behaviour = BehaviourType.Liquid, flags = MaterialFlags.ConductsHeat,
             freezeTemp = 150, materialOnFreeze = Iron,
             baseColour = new Color32(255, 120, 50, 255), colourVariation = 5,
-            dispersionRate = 3,
+            spread = 3,
         };
         defs[Iron] = new MaterialDef
         {
@@ -136,7 +136,7 @@ public static class Materials
         };
         defs[Coal] = new MaterialDef
         {
-            density = 100, slideResistance = 10, restitution = 40,
+            density = 100, stability = 10, restitution = 40,
             behaviour = BehaviourType.Powder,
             flags = MaterialFlags.Flammable | MaterialFlags.ConductsHeat,
             ignitionTemp = 180, materialOnBurn = Ash,
@@ -144,49 +144,49 @@ public static class Materials
         };
         defs[Ash] = new MaterialDef
         {
-            density = 15, slideResistance = 0, restitution = 26,
+            density = 15, stability = 0, restitution = 26,
             behaviour = BehaviourType.Powder, flags = MaterialFlags.None,
             baseColour = new Color32(160, 160, 155, 255), colourVariation = 8,
         };
         defs[Smoke] = new MaterialDef
         {
-            density = 2, slideResistance = 0,
+            density = 2, stability = 0,
             behaviour = BehaviourType.Gas, flags = MaterialFlags.None,
             baseColour = new Color32(100, 100, 110, 255), colourVariation = 15,
         };
         defs[Belt] = new MaterialDef
         {
-            density = 255, slideResistance = 255,
+            density = 255, stability = 255,
             behaviour = BehaviourType.Static, flags = MaterialFlags.None,
             baseColour = new Color32(60, 60, 70, 255), colourVariation = 0,
         };
         defs[BeltLeft] = new MaterialDef
         {
-            density = 255, slideResistance = 255,
+            density = 255, stability = 255,
             behaviour = BehaviourType.Static, flags = MaterialFlags.None,
             baseColour = new Color32(50, 50, 60, 255), colourVariation = 0,
         };
         defs[BeltRight] = new MaterialDef
         {
-            density = 255, slideResistance = 255,
+            density = 255, stability = 255,
             behaviour = BehaviourType.Static, flags = MaterialFlags.None,
             baseColour = new Color32(50, 50, 60, 255), colourVariation = 0,
         };
         defs[BeltLeftLight] = new MaterialDef
         {
-            density = 255, slideResistance = 255,
+            density = 255, stability = 255,
             behaviour = BehaviourType.Static, flags = MaterialFlags.None,
             baseColour = new Color32(80, 80, 95, 255), colourVariation = 0,
         };
         defs[BeltRightLight] = new MaterialDef
         {
-            density = 255, slideResistance = 255,
+            density = 255, stability = 255,
             behaviour = BehaviourType.Static, flags = MaterialFlags.None,
             baseColour = new Color32(80, 80, 95, 255), colourVariation = 0,
         };
         defs[Dirt] = new MaterialDef
         {
-            density = 140, slideResistance = 50, restitution = 51,
+            density = 140, stability = 50, restitution = 51,
             behaviour = BehaviourType.Powder, flags = MaterialFlags.None,
             baseColour = new Color32(139, 90, 43, 255), colourVariation = 12,
         };

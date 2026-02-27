@@ -274,10 +274,10 @@ public class SimulateChunksLogic
     private void TryPowderSlide(int x, int y, ref Cell cell, MaterialDef mat)
     {
         // Check slide resistance: higher values = less likely to slide diagonally
-        if (mat.slideResistance > 0)
+        if (mat.stability > 0)
         {
             uint hash = HashPosition(x, y, 0);
-            if ((hash & 255) < mat.slideResistance)
+            if ((hash & 255) < mat.stability)
             {
                 cell.velocityX = 0;
                 cell.velocityY = 0;
@@ -383,10 +383,10 @@ public class SimulateChunksLogic
                     if (vertColl)
                     {
                         // Convert vertical momentum to horizontal spread for liquid.
-                        // Scale boost by dispersionRate so viscous liquids spread less.
+                        // Scale boost by spread so viscous liquids spread less.
                         if (Math.Abs(vy) > 2 && cell.velocityX == 0)
                         {
-                            int boost = mat.dispersionRate + Math.Abs(vy) * mat.dispersionRate / 15;
+                            int boost = mat.spread + Math.Abs(vy) * mat.spread / 15;
                             uint ch = HashPosition(fx, fy, currentFrame);
                             cell.velocityX = (sbyte)((ch & 1) == 0 ? -boost : boost);
                         }
@@ -398,10 +398,10 @@ public class SimulateChunksLogic
                     }
                 }
                 // Damp horizontal velocity after horizontal movement.
-                // Higher slideResistance = faster decay (more friction).
+                // Liquid: higher stability value = more viscous = faster velocity decay.
                 if (fx != x)
                 {
-                    int dampNumerator = 224 - mat.slideResistance;
+                    int dampNumerator = 224 - mat.stability;
                     cell.velocityX = (sbyte)(cell.velocityX * dampNumerator / 256);
                 }
                 MoveCell(x, y, fx, fy, cell);
@@ -426,10 +426,10 @@ public class SimulateChunksLogic
         // Viscosity/friction check: per-frame chance to stop spreading.
         // Uses frame-varying hash so liquid eventually flows but gradually settles.
         // Only applies when the cell has no directional momentum (vx already decayed to 0).
-        if (mat.slideResistance > 0 && !wasFreeFalling && cell.velocityX == 0)
+        if (mat.stability > 0 && !wasFreeFalling && cell.velocityX == 0)
         {
             uint resistHash = HashPosition(x, y, currentFrame);
-            if ((resistHash & 255) < mat.slideResistance)
+            if ((resistHash & 255) < mat.stability)
             {
                 cell.velocityY = 0;
                 cells[y * width + x] = cell;
@@ -438,7 +438,7 @@ public class SimulateChunksLogic
         }
 
         int velocityBoost = wasFreeFalling ? Math.Abs(cell.velocityY) / 3 : 0;
-        int spread = mat.dispersionRate + velocityBoost;
+        int spread = mat.spread + velocityBoost;
 
         uint hash = HashPosition(x, y, currentFrame);
         int randomOffset = (int)(hash % 3) - 1;

@@ -14,7 +14,7 @@ namespace ParticularLLM.Tests.SimulationTests;
 ///    Lower restitution = less bounce (sand: 77 → 30%, dirt: 102 → 40%).
 /// 3. Gravity always pulls: even at zero velocity, powder/liquid falls 1 cell per frame
 ///    if air is below (density displacement).
-/// 4. At-rest stability (slideResistance) determines whether powder topples off piles.
+/// 4. At-rest stability (stability) determines whether powder topples off piles.
 ///    Higher stability = steeper piles.
 /// 5. Lift exit produces true arcing trajectories: material rises and moves laterally
 ///    simultaneously via the combined velocity vector.

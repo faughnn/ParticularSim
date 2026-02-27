@@ -28,12 +28,12 @@ public class MaterialTests
     }
 
     [Fact]
-    public void Water_IsLiquid_Density64_DispersionRate5()
+    public void Water_IsLiquid_Density64_Spread5()
     {
         var mats = Materials.CreateDefaults();
         Assert.Equal(BehaviourType.Liquid, mats[Materials.Water].behaviour);
         Assert.Equal(64, mats[Materials.Water].density);
-        Assert.Equal(5, mats[Materials.Water].dispersionRate);
+        Assert.Equal(5, mats[Materials.Water].spread);
     }
 
     [Fact]

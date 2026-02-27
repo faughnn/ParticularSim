@@ -15,7 +15,7 @@ namespace ParticularLLM.Tests.SimulationTests;
 /// 4. If can't rise diagonally: spread horizontally up to 4 cells.
 /// 5. When stuck (no movement possible): velocityY zeroed.
 /// 6. Steam: density=4. This means it displaces nothing except air.
-/// 7. Gas does NOT use dispersionRate from MaterialDef — hardcoded spread=4.
+/// 7. Gas does NOT use spread from MaterialDef — hardcoded spread=4.
 ///
 /// Known tradeoffs:
 /// - Gas uses byte wrap-around for overflow detection (different from powder/liquid's >= 256 check).
