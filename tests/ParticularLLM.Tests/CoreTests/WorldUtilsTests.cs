@@ -2,6 +2,14 @@ using ParticularLLM;
 
 namespace ParticularLLM.Tests.CoreTests;
 
+/// <summary>
+/// Contract: WorldUtils provides pure coordinate-conversion functions.
+/// - CellIndex: (x, y, width) → flat array index = y * width + x
+/// - CellToChunkX/Y: cell coordinate → chunk coordinate via integer division by 64
+/// - ChunkToCellX/Y: chunk coordinate → cell origin via multiplication by 64
+/// - CellToLocalX/Y: cell coordinate → position within chunk via modulo 64
+/// - IsInBounds: checks 0 ≤ x &lt; width and 0 ≤ y &lt; height
+/// </summary>
 public class WorldUtilsTests
 {
     [Theory]

@@ -3,6 +3,18 @@ using ParticularLLM.Tests.Helpers;
 
 namespace ParticularLLM.Tests.StructureTests;
 
+/// <summary>
+/// Contract: BeltManager placement operations.
+///
+/// - PlaceBelt snaps to 8x8 grid, writes belt material variants (BeltLeft/BeltRight + light)
+///   to all 64 cells. Direction (+1=right, -1=left) determines which belt material is used.
+/// - Placement fails if any cell in the 8x8 area has non-soft-terrain (stone, other structures).
+/// - Placement on soft terrain (Ground, Dirt, Sand, Water) creates a ghost belt that doesn't
+///   write material but reserves the space.
+/// - Adjacent same-direction belts merge into a single logical belt.
+/// - Adjacent different-direction belts remain separate.
+/// - RemoveBelt clears all 64 cells to Air and removes the belt from the manager.
+/// </summary>
 public class BeltPlacementTests
 {
     [Fact]

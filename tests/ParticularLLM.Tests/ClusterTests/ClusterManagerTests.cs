@@ -264,6 +264,69 @@ public class ClusterManagerTests
     }
 
     [Fact]
+    public void Displacement_CongestedArea_MaterialConserved()
+    {
+        // Cluster lands in a densely packed region where the immediate
+        // neighborhood is full of sand. Displacement must use fallback
+        // search to find air further out — no material should be lost.
+        var world = new CellWorld(64, 64);
+        var manager = new ClusterManager();
+
+        // Fill a large block of sand around the landing zone (20x20)
+        for (int x = 22; x < 42; x++)
+            for (int y = 22; y < 42; y++)
+                world.SetCell(x, y, Materials.Sand);
+
+        int sandBefore = WorldAssert.CountMaterial(world, Materials.Sand);
+
+        // 5x5 cluster landing right in the middle of the sand block
+        var cluster = ClusterFactory.CreateSquareCluster(32f, 32f, 2, Materials.Stone, manager);
+        cluster.VelocityY = 3f;
+        cluster.IsSleeping = true; // Skip physics, isolate displacement behavior
+        manager.Register(cluster);
+
+        manager.StepAndSync(world);
+
+        int sandAfter = WorldAssert.CountMaterial(world, Materials.Sand);
+        Assert.Equal(sandBefore, sandAfter);
+        Assert.True(manager.DisplacementsThisFrame >= cluster.PixelCount,
+            $"Expected at least {cluster.PixelCount} displacements, got {manager.DisplacementsThisFrame}");
+    }
+
+    [Fact]
+    public void Displacement_ColumnFullAboveAndBelow_FindsAirElsewhere()
+    {
+        // The entire column at x=32 is filled with sand except where the
+        // cluster pixel lands. Displacement can't go up or down in the
+        // same column — must find air in an adjacent column.
+        var world = new CellWorld(64, 64);
+        var manager = new ClusterManager();
+
+        // Fill entire column x=32 with sand
+        for (int y = 0; y < 64; y++)
+            world.SetCell(32, y, Materials.Sand);
+
+        int sandBefore = WorldAssert.CountMaterial(world, Materials.Sand);
+
+        // Single-pixel cluster at (32, 32)
+        var cluster = new ClusterData(manager.AllocateId());
+        cluster.X = 32f;
+        cluster.Y = 32f;
+        cluster.VelocityY = 2f;
+        cluster.AddPixel(new ClusterPixel(0, 0, Materials.Stone));
+        cluster.IsSleeping = true;
+        manager.Register(cluster);
+
+        manager.StepAndSync(world);
+
+        int sandAfter = WorldAssert.CountMaterial(world, Materials.Sand);
+        Assert.Equal(sandBefore, sandAfter);
+
+        // Cluster pixel should be placed
+        Assert.Equal(Materials.Stone, world.GetCell(32, 32));
+    }
+
+    [Fact]
     public void StepAndSync_LandsOnFloor_Settles()
     {
         var world = new CellWorld(64, 64);

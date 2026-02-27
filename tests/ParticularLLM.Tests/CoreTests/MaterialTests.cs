@@ -2,6 +2,16 @@ using ParticularLLM;
 
 namespace ParticularLLM.Tests.CoreTests;
 
+/// <summary>
+/// Contract: Materials.CreateDefaults() returns a 256-element array of MaterialDef.
+/// Each material has a defined behaviour type, density, and flags.
+/// Helper methods (IsBelt, IsLift, IsPiston, IsStructureMaterial, IsSoftTerrain, IsDiggable)
+/// correctly classify materials by their role.
+///
+/// Density ordering (heaviest to lightest): Stone=Iron > IronOre=MoltenIron > Dirt > Sand > Coal > Water > Oil > Ash > Steam > Smoke > Air
+/// Behaviour types: Powder (Sand, Dirt, IronOre, Coal, Ash), Liquid (Water, Oil, MoltenIron),
+///   Gas (Steam, Smoke), Static (Air, Stone, Iron, Ground, Wall, Belt*, Lift*, Piston*, Furnace)
+/// </summary>
 public class MaterialTests
 {
     [Fact]
@@ -37,6 +47,66 @@ public class MaterialTests
     }
 
     [Fact]
+    public void Steam_IsGas_LowDensity()
+    {
+        var mats = Materials.CreateDefaults();
+        Assert.Equal(BehaviourType.Gas, mats[Materials.Steam].behaviour);
+        Assert.Equal(4, mats[Materials.Steam].density);
+    }
+
+    [Fact]
+    public void Oil_IsLiquid_Flammable()
+    {
+        var mats = Materials.CreateDefaults();
+        Assert.Equal(BehaviourType.Liquid, mats[Materials.Oil].behaviour);
+        Assert.True((mats[Materials.Oil].flags & MaterialFlags.Flammable) != 0);
+    }
+
+    [Fact]
+    public void IronOre_IsPowder_MeltsToMoltenIron()
+    {
+        var mats = Materials.CreateDefaults();
+        Assert.Equal(BehaviourType.Powder, mats[Materials.IronOre].behaviour);
+        Assert.Equal(200, mats[Materials.IronOre].meltTemp);
+        Assert.Equal(Materials.MoltenIron, mats[Materials.IronOre].materialOnMelt);
+    }
+
+    [Fact]
+    public void MoltenIron_IsLiquid_FreezesToIron()
+    {
+        var mats = Materials.CreateDefaults();
+        Assert.Equal(BehaviourType.Liquid, mats[Materials.MoltenIron].behaviour);
+        Assert.Equal(150, mats[Materials.MoltenIron].freezeTemp);
+        Assert.Equal(Materials.Iron, mats[Materials.MoltenIron].materialOnFreeze);
+    }
+
+    [Fact]
+    public void Iron_IsStatic_MeltsToMoltenIron()
+    {
+        var mats = Materials.CreateDefaults();
+        Assert.Equal(BehaviourType.Static, mats[Materials.Iron].behaviour);
+        Assert.Equal(200, mats[Materials.Iron].meltTemp);
+        Assert.Equal(Materials.MoltenIron, mats[Materials.Iron].materialOnMelt);
+    }
+
+    [Fact]
+    public void Coal_IsPowder_Flammable_BurnsToAsh()
+    {
+        var mats = Materials.CreateDefaults();
+        Assert.Equal(BehaviourType.Powder, mats[Materials.Coal].behaviour);
+        Assert.True((mats[Materials.Coal].flags & MaterialFlags.Flammable) != 0);
+        Assert.Equal(Materials.Ash, mats[Materials.Coal].materialOnBurn);
+    }
+
+    [Fact]
+    public void Smoke_IsGas()
+    {
+        var mats = Materials.CreateDefaults();
+        Assert.Equal(BehaviourType.Gas, mats[Materials.Smoke].behaviour);
+        Assert.Equal(2, mats[Materials.Smoke].density);
+    }
+
+    [Fact]
     public void Sand_DenserThanWater()
     {
         var mats = Materials.CreateDefaults();
@@ -48,6 +118,24 @@ public class MaterialTests
     {
         var mats = Materials.CreateDefaults();
         Assert.True(mats[Materials.Dirt].density > mats[Materials.Sand].density);
+    }
+
+    [Fact]
+    public void DensityOrdering_HeavySinksLightRises()
+    {
+        var mats = Materials.CreateDefaults();
+        // Stone/Iron are max density statics
+        Assert.Equal(255, mats[Materials.Stone].density);
+        Assert.Equal(255, mats[Materials.Iron].density);
+        // IronOre/MoltenIron > Dirt > Sand > Coal > Water > Oil > Ash > Steam > Smoke
+        Assert.True(mats[Materials.IronOre].density > mats[Materials.Dirt].density);
+        Assert.True(mats[Materials.Dirt].density > mats[Materials.Sand].density);
+        Assert.True(mats[Materials.Sand].density > mats[Materials.Coal].density);
+        Assert.True(mats[Materials.Coal].density > mats[Materials.Water].density);
+        Assert.True(mats[Materials.Water].density > mats[Materials.Oil].density);
+        Assert.True(mats[Materials.Oil].density > mats[Materials.Ash].density);
+        Assert.True(mats[Materials.Ash].density > mats[Materials.Steam].density);
+        Assert.True(mats[Materials.Steam].density > mats[Materials.Smoke].density);
     }
 
     [Fact]
@@ -76,6 +164,27 @@ public class MaterialTests
     }
 
     [Fact]
+    public void IsPiston_TrueForPistonMaterials()
+    {
+        Assert.True(Materials.IsPiston(Materials.PistonBase));
+        Assert.True(Materials.IsPiston(Materials.PistonArm));
+        Assert.False(Materials.IsPiston(Materials.Sand));
+    }
+
+    [Fact]
+    public void IsStructureMaterial_ClassifiesCorrectly()
+    {
+        Assert.True(Materials.IsStructureMaterial(Materials.Belt));
+        Assert.True(Materials.IsStructureMaterial(Materials.BeltLeft));
+        Assert.True(Materials.IsStructureMaterial(Materials.LiftUp));
+        Assert.True(Materials.IsStructureMaterial(Materials.Wall));
+        Assert.True(Materials.IsStructureMaterial(Materials.PistonBase));
+        Assert.True(Materials.IsStructureMaterial(Materials.Furnace));
+        Assert.False(Materials.IsStructureMaterial(Materials.Sand));
+        Assert.False(Materials.IsStructureMaterial(Materials.Air));
+    }
+
+    [Fact]
     public void IsSoftTerrain_CorrectMaterials()
     {
         Assert.True(Materials.IsSoftTerrain(Materials.Ground));
@@ -100,5 +209,17 @@ public class MaterialTests
         var mats = Materials.CreateDefaults();
         Assert.True(Materials.IsDiggable(mats[Materials.Ground]));
         Assert.False(Materials.IsDiggable(mats[Materials.Stone]));
+    }
+
+    [Fact]
+    public void StructureMaterials_AreStatic_MaxDensity()
+    {
+        var mats = Materials.CreateDefaults();
+        byte[] structureMats = [Materials.Belt, Materials.Wall, Materials.PistonBase, Materials.PistonArm, Materials.Furnace];
+        foreach (var mat in structureMats)
+        {
+            Assert.Equal(BehaviourType.Static, mats[mat].behaviour);
+            Assert.Equal(255, mats[mat].density);
+        }
     }
 }

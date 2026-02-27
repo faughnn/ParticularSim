@@ -140,6 +140,34 @@ public class ClusterData
     }
 
     /// <summary>
+    /// Compute world-space AABB for this cluster at its current position and rotation.
+    /// Returns the min/max cell coordinates that could contain cluster pixels.
+    /// </summary>
+    public void GetWorldAABB(out float minX, out float maxX, out float minY, out float maxY)
+    {
+        BuildPixelLookup();
+
+        if (_pixels.Count == 0)
+        {
+            minX = maxX = X;
+            minY = maxY = Y;
+            return;
+        }
+
+        float hx = MathF.Max(MathF.Abs(_lookupMinX), MathF.Abs(_lookupMinX + _lookupWidth - 1)) + 1f;
+        float hy = MathF.Max(MathF.Abs(_lookupMinY), MathF.Abs(_lookupMinY + _lookupHeight - 1)) + 1f;
+        float absCos = MathF.Abs(MathF.Cos(Rotation));
+        float absSin = MathF.Abs(MathF.Sin(Rotation));
+        float extentX = hx * absCos + hy * absSin;
+        float extentY = hx * absSin + hy * absCos;
+
+        minX = X - extentX;
+        maxX = X + extentX;
+        minY = Y - extentY;
+        maxY = Y + extentY;
+    }
+
+    /// <summary>
     /// Iterate all world cells covered by this cluster using inverse mapping.
     /// For each occupied cell, calls action(cellX, cellY, materialId).
     /// Uses the rotated bounding box approach to guarantee no gaps.
@@ -154,24 +182,17 @@ public class ClusterData
     /// </summary>
     public bool ForEachWorldCell(int worldWidth, int worldHeight, Func<int, int, byte, bool> action)
     {
-        BuildPixelLookup();
         if (_pixels.Count == 0) return false;
+
+        GetWorldAABB(out float aabbMinX, out float aabbMaxX, out float aabbMinY, out float aabbMaxY);
 
         float cos = MathF.Cos(Rotation);
         float sin = MathF.Sin(Rotation);
 
-        // Compute world-space AABB from local bounds + rotation
-        float hx = MathF.Max(MathF.Abs(_lookupMinX), MathF.Abs(_lookupMinX + _lookupWidth - 1)) + 1f;
-        float hy = MathF.Max(MathF.Abs(_lookupMinY), MathF.Abs(_lookupMinY + _lookupHeight - 1)) + 1f;
-        float absCos = MathF.Abs(cos);
-        float absSin = MathF.Abs(sin);
-        float extentX = hx * absCos + hy * absSin;
-        float extentY = hx * absSin + hy * absCos;
-
-        int cellMinX = Math.Max(0, (int)MathF.Floor(X - extentX));
-        int cellMaxX = Math.Min(worldWidth - 1, (int)MathF.Ceiling(X + extentX));
-        int cellMinY = Math.Max(0, (int)MathF.Floor(Y - extentY));
-        int cellMaxY = Math.Min(worldHeight - 1, (int)MathF.Ceiling(Y + extentY));
+        int cellMinX = Math.Max(0, (int)MathF.Floor(aabbMinX));
+        int cellMaxX = Math.Min(worldWidth - 1, (int)MathF.Ceiling(aabbMaxX));
+        int cellMinY = Math.Max(0, (int)MathF.Floor(aabbMinY));
+        int cellMaxY = Math.Min(worldHeight - 1, (int)MathF.Ceiling(aabbMaxY));
 
         for (int cy = cellMinY; cy <= cellMaxY; cy++)
         {

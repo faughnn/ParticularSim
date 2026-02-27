@@ -326,12 +326,11 @@ public class PowderCollisionTests
         sim.Set(32, 10, Materials.Sand);
 
         // After 30 frames, sand should have moved down (velocity built via fractional gravity)
-        sim.Step(30);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(30, counts);
         var pos = sim.FindMaterial(Materials.Sand);
         Assert.Single(pos);
         Assert.True(pos[0].y > 10,
             $"Sand in narrow gap should fall via gravity after accumulator overflow, but at y={pos[0].y}");
-
-        Assert.Equal(1, WorldAssert.CountMaterial(sim.World, Materials.Sand));
     }
 }

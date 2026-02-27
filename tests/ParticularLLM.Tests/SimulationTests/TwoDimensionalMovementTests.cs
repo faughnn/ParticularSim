@@ -58,7 +58,8 @@ public class TwoDimensionalMovementTests
         sim.Fill(0, 240, 128, 16, Materials.Stone);
         sim.Set(64, 0, Materials.Sand);
 
-        sim.Step(200); // Let it fall and impact
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(200, counts); // Let it fall and impact
 
         // Sand should have scattered (not be at exactly x=64)
         var pos = sim.FindMaterial(Materials.Sand);
@@ -80,11 +81,7 @@ public class TwoDimensionalMovementTests
         sim.Set(32, 0, Materials.Dirt);
 
         var counts = sim.SnapshotMaterialCounts();
-        sim.Step(500);
-        InvariantChecker.AssertMaterialConservation(sim.World, counts);
-
-        Assert.Equal(1, WorldAssert.CountMaterial(sim.World, Materials.Sand));
-        Assert.Equal(1, WorldAssert.CountMaterial(sim.World, Materials.Dirt));
+        sim.StepWithInvariants(500, counts);
     }
 
     // ===== BRESENHAM TRACE: ARBITRARY ANGLES =====

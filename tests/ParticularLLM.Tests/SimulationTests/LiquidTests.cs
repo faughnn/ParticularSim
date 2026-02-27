@@ -3,16 +3,31 @@ using ParticularLLM.Tests.Helpers;
 
 namespace ParticularLLM.Tests.SimulationTests;
 
+/// <summary>
+/// English rules for liquid simulation (derived from SimulateChunksLogic.SimulateLiquid):
+///
+/// 1. Liquid falls downward due to gravity, same as powder — zero-velocity gravity pull
+///    always attempts y+1 if open.
+/// 2. On landing (vertical collision), vertical momentum converts to horizontal spread velocity.
+///    Boost scales with mat.spread, so viscous liquids (high stability) spread less.
+/// 3. At rest, liquid spreads horizontally up to mat.spread distance (water=5).
+///    Direction alternates based on cell position + frame to avoid bias.
+/// 4. Viscosity (stability) provides probabilistic resistance to spreading — higher stability
+///    means the liquid settles and stops sooner (oil is more viscous than water).
+/// 5. Liquid displaces lighter materials via density comparison (water density=64).
+/// 6. Liquid fills containers: spreads to fill available horizontal space, pooling above floors.
+/// 7. Material conservation: MoveCell swaps cells; no liquid is created or destroyed.
+/// </summary>
 public class LiquidTests
 {
     [Fact]
     public void Water_FallsDown()
     {
+        // Rule 1: liquid falls to bottom row with no floor
         using var sim = new SimulationFixture();
         sim.Set(32, 10, Materials.Water);
-        sim.Step(200);
-        // Water should have fallen to the bottom row (63) since there's no floor
-        // It may have spread laterally so check any x on bottom row
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(200, counts);
         int waterOnBottom = WorldAssert.CountMaterial(sim.World, 0, 63, 64, 1, Materials.Water);
         Assert.Equal(1, waterOnBottom);
     }
@@ -20,16 +35,15 @@ public class LiquidTests
     [Fact]
     public void Water_SpreadsHorizontally()
     {
+        // Rule 3: single water cell lands on floor and doesn't stack vertically
         using var sim = new SimulationFixture();
-        sim.Fill(0, 63, 64, 1, Materials.Stone);  // Floor
+        sim.Fill(0, 63, 64, 1, Materials.Stone);
         sim.Set(32, 10, Materials.Water);
-        sim.Step(500);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(500, counts);
 
-        // Material conservation: still exactly 1 water cell
         int waterCount = WorldAssert.CountMaterial(sim.World, Materials.Water);
         Assert.Equal(1, waterCount);
-
-        // Water should be on row 62 (just above stone floor), possibly spread laterally
         int waterOnRow62 = WorldAssert.CountMaterial(sim.World, 0, 62, 64, 1, Materials.Water);
         Assert.Equal(1, waterOnRow62);
     }
@@ -37,14 +51,12 @@ public class LiquidTests
     [Fact]
     public void Water_FillsContainer()
     {
+        // Rule 6: liquid fills available horizontal space within container walls
         using var sim = new SimulationFixture();
-        // Build a container: left wall, right wall, floor
         sim.Fill(20, 50, 1, 14, Materials.Stone);   // Left wall
         sim.Fill(43, 50, 1, 14, Materials.Stone);   // Right wall
         sim.Fill(20, 63, 24, 1, Materials.Stone);   // Floor
 
-        // Place water cells directly inside the container (stacked near the top)
-        // so they can fall and settle without escaping
         int waterPlaced = 0;
         for (int i = 0; i < 10; i++)
         {
@@ -52,13 +64,12 @@ public class LiquidTests
             waterPlaced++;
         }
 
-        sim.Step(500);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(500, counts);
 
-        // Material conservation: all water cells should still exist
         int waterCount = WorldAssert.CountMaterial(sim.World, Materials.Water);
         Assert.Equal(waterPlaced, waterCount);
 
-        // All water should be inside the container (between walls, above floor)
         int waterInContainer = WorldAssert.CountMaterial(sim.World, 21, 50, 22, 13, Materials.Water);
         Assert.Equal(waterPlaced, waterInContainer);
     }
@@ -66,6 +77,7 @@ public class LiquidTests
     [Fact]
     public void Water_MaterialConservation()
     {
+        // Rule 7: per-frame conservation with 140 water cells
         using var sim = new SimulationFixture(128, 128);
         sim.Fill(0, 120, 128, 8, Materials.Stone);
 
@@ -77,7 +89,8 @@ public class LiquidTests
                 placed++;
             }
 
-        sim.Step(1000);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(1000, counts);
 
         int remaining = WorldAssert.CountMaterial(sim.World, Materials.Water);
         Assert.Equal(placed, remaining);
@@ -86,22 +99,24 @@ public class LiquidTests
     [Fact]
     public void Water_LeavesOriginalPosition()
     {
+        // Rule 1: after enough frames, liquid has fallen away from start
         using var sim = new SimulationFixture();
         sim.Set(32, 10, Materials.Water);
-        sim.Step(30);
-        // After enough frames, water should have moved away from starting position
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(30, counts);
         WorldAssert.IsAir(sim.World, 32, 10);
     }
 
     [Fact]
     public void Water_StopsAboveStone()
     {
+        // Rule 1: liquid stops above static blocking material
         using var sim = new SimulationFixture();
-        sim.Fill(0, 40, 64, 1, Materials.Stone);  // Stone floor at row 40
+        sim.Fill(0, 40, 64, 1, Materials.Stone);
         sim.Set(32, 10, Materials.Water);
-        sim.Step(500);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(500, counts);
 
-        // Water should be on row 39 (just above stone)
         int waterOnRow39 = WorldAssert.CountMaterial(sim.World, 0, 39, 64, 1, Materials.Water);
         Assert.Equal(1, waterOnRow39);
     }

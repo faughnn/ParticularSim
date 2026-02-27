@@ -55,7 +55,8 @@ public class HeatTransferTests
         sim.Set(8, 8, Materials.Stone);
         sim.SetTemperature(8, 8, 200);
 
-        sim.Step(500);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(500, counts);
 
         byte temp = sim.GetTemperature(8, 8);
         Assert.Equal(HeatSettings.AmbientTemperature, temp);
@@ -111,7 +112,8 @@ public class HeatTransferTests
         sim.SetTemperature(7, 8, 200);
         sim.SetTemperature(8, 8, 20);
 
-        sim.Step(500);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(500, counts);
 
         byte temp1 = sim.GetTemperature(7, 8);
         byte temp2 = sim.GetTemperature(8, 8);
@@ -250,7 +252,8 @@ public class HeatTransferTests
         for (int y = 8; y < 12; y++)
             sim.SetTemperature(4, y, 200);
 
-        sim.Step(20);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(20, counts);
 
         // Water near the hot wall should be warmer than water far from it
         byte nearTemp = sim.GetTemperature(5, 10);

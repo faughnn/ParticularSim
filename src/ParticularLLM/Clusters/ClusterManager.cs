@@ -18,6 +18,8 @@ public class ClusterManager
 {
     private readonly Dictionary<ushort, ClusterData> _clusters = new();
     private readonly Queue<ushort> _freeIds = new();
+    private readonly List<ClusterData> _clusterListCache = new();
+    private bool _clusterListDirty = true;
     private ushort _nextId = 1;
 
     /// <summary>Momentum transfer factor when displacing cells (0-1).</summary>
@@ -53,14 +55,18 @@ public class ClusterManager
     {
         if (cluster.Id == 0) return;
         _clusters[cluster.Id] = cluster;
+        _clusterListDirty = true;
     }
 
     /// <summary>Unregister a cluster (does NOT clear its pixels from the grid).</summary>
     /// <param name="releaseId">If true, the cluster's ID is returned to the free pool for reuse.</param>
     public void Unregister(ClusterData cluster, bool releaseId = true)
     {
-        if (_clusters.Remove(cluster.Id) && releaseId)
-            ReleaseId(cluster.Id);
+        if (_clusters.Remove(cluster.Id))
+        {
+            _clusterListDirty = true;
+            if (releaseId) ReleaseId(cluster.Id);
+        }
     }
 
     /// <summary>Remove a cluster completely: clear pixels from grid, unregister.</summary>
@@ -105,10 +111,16 @@ public class ClusterManager
             ClearClusterPixels(cluster, world);
         }
 
-        // STEP 2: Step physics for each cluster
-        foreach (var cluster in _clusters.Values)
+        // STEP 2: Step physics for each cluster (with cluster-cluster collision)
+        if (_clusterListDirty)
         {
-            ClusterPhysics.StepCluster(cluster, world);
+            _clusterListCache.Clear();
+            _clusterListCache.AddRange(_clusters.Values);
+            _clusterListDirty = false;
+        }
+        foreach (var cluster in _clusterListCache)
+        {
+            ClusterPhysics.StepCluster(cluster, world, _clusterListCache);
         }
 
         // STEP 3: Sync cluster pixels to grid at new positions
@@ -163,6 +175,13 @@ public class ClusterManager
         {
             int index = cy * world.width + cx;
             Cell existing = world.cells[index];
+
+            // Don't overwrite pixels owned by another cluster.
+            // Two clusters can have overlapping grid cells due to sub-pixel positioning.
+            // The other cluster's pixel takes priority; this pixel remains in the cluster
+            // data but isn't rendered on the grid until the clusters separate.
+            if (existing.ownerId != 0 && existing.ownerId != clusterId)
+                return;
 
             // Displace existing non-air, non-owned cells
             if (existing.materialId != Materials.Air && existing.ownerId == 0)

@@ -98,6 +98,40 @@ public class SimulationFixture : IDisposable
     }
 
     /// <summary>
+    /// Runs simulation until the grid stops changing between frames, or maxFrames is reached,
+    /// checking material conservation every frame.
+    /// Returns the number of frames simulated.
+    /// </summary>
+    public int StepUntilSettledWithInvariants(Dictionary<byte, int> expectedCounts, int maxFrames = 5000)
+    {
+        byte[] previous = new byte[World.cells.Length];
+
+        for (int frame = 0; frame < maxFrames; frame++)
+        {
+            for (int i = 0; i < World.cells.Length; i++)
+                previous[i] = World.cells[i].materialId;
+
+            Simulator.Simulate(World);
+            InvariantChecker.AssertMaterialConservation(World, expectedCounts);
+
+            bool changed = false;
+            for (int i = 0; i < World.cells.Length; i++)
+            {
+                if (World.cells[i].materialId != previous[i])
+                {
+                    changed = true;
+                    break;
+                }
+            }
+
+            if (!changed)
+                return frame + 1;
+        }
+
+        return maxFrames;
+    }
+
+    /// <summary>
     /// Takes a snapshot of all non-air material counts in the world.
     /// </summary>
     public Dictionary<byte, int> SnapshotMaterialCounts()

@@ -353,7 +353,10 @@ public class ClusterPhysicsTests
 
         ClusterPhysics.StepCluster(cluster, world);
 
-        // If rotation caused overlap, it should have been reverted
-        // (exact behavior depends on pixel positions after rotation)
+        // If rotation caused overlap with the stone wall, rotation should have been reverted.
+        // The cluster should either have reverted to rotBefore or found a valid rotation.
+        // Either way, it should NOT overlap with static material.
+        bool overlaps = ClusterPhysics.OverlapsStatic(cluster, world);
+        Assert.False(overlaps, "After rotation collision, cluster should not overlap static material");
     }
 }

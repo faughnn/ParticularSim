@@ -2,15 +2,25 @@ namespace ParticularLLM;
 
 /// <summary>
 /// Simple deterministic rigid body solver for clusters.
-/// Replaces Unity's Physics2D with separated-axis collision against static terrain.
+/// Handles collision with static terrain AND other clusters.
 ///
 /// Physics step per cluster:
 /// 1. Apply gravity to velocity
 /// 2. Integrate position (X then Y separately for collision resolution)
 /// 3. Detect overlap with static terrain (pixel-level check)
-/// 4. If overlap: undo movement, reflect velocity with restitution, apply friction
-/// 5. Integrate rotation (undo if overlap)
-/// 6. Sleep detection: consecutive low-velocity frames with ground contact → force sleep
+/// 4. Detect overlap with other clusters (AABB pre-filter + pixel-level check)
+/// 5. If overlap: undo movement, apply collision response
+///    - Static terrain: reflect velocity with restitution
+///    - Other cluster: 1D momentum exchange (conservation of momentum with restitution)
+/// 6. Integrate rotation (undo if overlap with statics or clusters)
+/// 7. Sleep detection: consecutive low-velocity frames with ground contact → force sleep
+///
+/// Cluster-cluster collision uses separated-axis approach matching static collision:
+/// - After moving along each axis, check for overlap with all other clusters
+/// - On collision: undo movement, exchange momentum based on masses
+/// - Heavier clusters transfer more momentum to lighter ones
+/// - Collision wakes sleeping clusters
+/// - Landing on another cluster counts as "on ground" for sleep detection
 /// </summary>
 public static class ClusterPhysics
 {
@@ -27,9 +37,20 @@ public static class ClusterPhysics
     public const int SleepFrameThreshold = 30;
 
     /// <summary>
-    /// Step physics for a single cluster. Call after clearing cluster pixels from the grid.
+    /// Step physics for a single cluster (no cluster-cluster collision).
+    /// Backward-compatible overload for tests that only need static collision.
     /// </summary>
     public static void StepCluster(ClusterData cluster, CellWorld world)
+    {
+        StepCluster(cluster, world, Array.Empty<ClusterData>());
+    }
+
+    /// <summary>
+    /// Step physics for a single cluster with full collision detection.
+    /// Checks both static terrain and other clusters.
+    /// Call after clearing cluster pixels from the grid.
+    /// </summary>
+    public static void StepCluster(ClusterData cluster, CellWorld world, IReadOnlyList<ClusterData> allClusters)
     {
         if (cluster.IsSleeping) return;
         if (cluster.PixelCount == 0) return;
@@ -48,6 +69,15 @@ public static class ClusterPhysics
             cluster.X = oldX;
             cluster.VelocityX *= -cluster.Restitution;
         }
+        else
+        {
+            var hitCluster = FindOverlappingCluster(cluster, allClusters);
+            if (hitCluster != null)
+            {
+                cluster.X = oldX;
+                ResolveCollision1D(cluster, hitCluster, isXAxis: true);
+            }
+        }
 
         // Integrate Y
         cluster.Y += cluster.VelocityY;
@@ -62,6 +92,20 @@ public static class ClusterPhysics
             if (hitGround)
                 cluster.VelocityX *= (1f - cluster.Friction);
         }
+        else
+        {
+            var hitCluster = FindOverlappingCluster(cluster, allClusters);
+            if (hitCluster != null)
+            {
+                cluster.Y = oldY;
+                hitGround = cluster.VelocityY > 0; // Was moving down (landing on another cluster)
+                ResolveCollision1D(cluster, hitCluster, isXAxis: false);
+
+                // Apply friction when landing on another cluster
+                if (hitGround)
+                    cluster.VelocityX *= (1f - cluster.Friction);
+            }
+        }
 
         cluster.IsOnGround = hitGround;
 
@@ -69,7 +113,11 @@ public static class ClusterPhysics
         if (MathF.Abs(cluster.AngularVelocity) > 0.001f)
         {
             cluster.Rotation += cluster.AngularVelocity;
-            if (OverlapsStatic(cluster, world))
+            bool rotOverlap = OverlapsStatic(cluster, world);
+            if (!rotOverlap)
+                rotOverlap = FindOverlappingCluster(cluster, allClusters) != null;
+
+            if (rotOverlap)
             {
                 cluster.Rotation = oldRot;
                 cluster.AngularVelocity *= -0.1f; // Heavy angular damping
@@ -106,6 +154,49 @@ public static class ClusterPhysics
     }
 
     /// <summary>
+    /// 1D collision response between two clusters along one axis.
+    /// Uses conservation of momentum with coefficient of restitution.
+    ///
+    /// Formulas (standard 1D inelastic collision):
+    ///   v1' = (m1*v1 + m2*v2 - m2*e*(v1 - v2)) / (m1 + m2)
+    ///   v2' = (m1*v1 + m2*v2 + m1*e*(v1 - v2)) / (m1 + m2)
+    ///
+    /// Properties:
+    ///   - Conserves momentum: m1*v1' + m2*v2' = m1*v1 + m2*v2
+    ///   - e=1 (elastic): equal-mass clusters swap velocities
+    ///   - e=0 (inelastic): both end up at center-of-mass velocity
+    ///   - Heavy cluster barely affected, light cluster gets most of the impulse
+    /// </summary>
+    public static void ResolveCollision1D(ClusterData a, ClusterData b, bool isXAxis)
+    {
+        float mA = a.Mass;
+        float mB = b.Mass;
+        float e = (a.Restitution + b.Restitution) * 0.5f;
+
+        float vA = isXAxis ? a.VelocityX : a.VelocityY;
+        float vB = isXAxis ? b.VelocityX : b.VelocityY;
+
+        float totalMass = mA + mB;
+        float newVA = (mA * vA + mB * vB - mB * e * (vA - vB)) / totalMass;
+        float newVB = (mA * vA + mB * vB + mA * e * (vA - vB)) / totalMass;
+
+        if (isXAxis)
+        {
+            a.VelocityX = newVA;
+            b.VelocityX = newVB;
+        }
+        else
+        {
+            a.VelocityY = newVA;
+            b.VelocityY = newVB;
+        }
+
+        // Wake the other cluster if sleeping
+        if (b.IsSleeping)
+            b.Wake();
+    }
+
+    /// <summary>
     /// Check if any cluster pixel at its current position overlaps a static cell or is out of bounds.
     /// Uses direct pixel iteration (not ForEachWorldCell) so out-of-bounds positions are detected.
     /// </summary>
@@ -135,5 +226,70 @@ public static class ClusterPhysics
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Find the first cluster that overlaps with this cluster at their current positions.
+    /// Uses AABB pre-filtering for performance, then pixel-level overlap check.
+    /// Returns null if no overlap.
+    /// </summary>
+    public static ClusterData? FindOverlappingCluster(ClusterData cluster, IReadOnlyList<ClusterData> allClusters)
+    {
+        if (allClusters.Count == 0) return null;
+
+        cluster.BuildPixelLookup();
+        if (cluster.PixelCount == 0) return null;
+
+        float cosA = MathF.Cos(cluster.Rotation);
+        float sinA = MathF.Sin(cluster.Rotation);
+
+        cluster.GetWorldAABB(out float aMinX, out float aMaxX, out float aMinY, out float aMaxY);
+
+        for (int i = 0; i < allClusters.Count; i++)
+        {
+            var other = allClusters[i];
+            if (other.Id == cluster.Id) continue;
+            if (other.PixelCount == 0) continue;
+
+            // AABB pre-filter
+            other.GetWorldAABB(out float bMinX, out float bMaxX, out float bMinY, out float bMaxY);
+            if (aMaxX < bMinX || aMinX > bMaxX || aMaxY < bMinY || aMinY > bMaxY)
+                continue;
+
+            // Pixel-level overlap: for each pixel in A, check if it maps to a pixel in B
+            other.BuildPixelLookup();
+            float cosB = MathF.Cos(other.Rotation);
+            float sinB = MathF.Sin(other.Rotation);
+
+            foreach (var pixel in cluster.Pixels)
+            {
+                // Pixel → world
+                float worldX = cluster.X + pixel.localX * cosA - pixel.localY * sinA;
+                float worldY = cluster.Y + pixel.localX * sinA + pixel.localY * cosA;
+
+                // World → other's local space (inverse rotation)
+                float dx = worldX - other.X;
+                float dy = worldY - other.Y;
+                float localX = dx * cosB + dy * sinB;
+                float localY = -dx * sinB + dy * cosB;
+
+                int lx = (int)MathF.Round(localX);
+                int ly = (int)MathF.Round(localY);
+
+                if (other.GetPixelMaterialAt(lx, ly) != Materials.Air)
+                    return other;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Compute world-space AABB for a cluster at its current position and rotation.
+    /// Delegates to ClusterData.GetWorldAABB (single source of truth for extent math).
+    /// </summary>
+    public static void GetWorldAABB(ClusterData cluster, out float minX, out float maxX, out float minY, out float maxY)
+    {
+        cluster.GetWorldAABB(out minX, out maxX, out minY, out maxY);
     }
 }

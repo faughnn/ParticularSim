@@ -3,6 +3,15 @@ using ParticularLLM.Tests.Helpers;
 
 namespace ParticularLLM.Tests.StructureTests;
 
+/// <summary>
+/// Contract: WallManager placement operations.
+///
+/// - PlaceWall snaps to 8x8 grid, writes Wall material to all 64 cells.
+/// - Placement fails if any cell has non-soft-terrain (stone, other structures).
+/// - Placement on soft terrain creates a ghost wall (doesn't write material until cleared).
+/// - RemoveWall clears all 64 cells to Air.
+/// - Wall material is static with max density, blocking all material movement.
+/// </summary>
 public class WallPlacementTests
 {
     [Fact]

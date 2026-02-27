@@ -3,6 +3,17 @@ using ParticularLLM.Tests.Helpers;
 
 namespace ParticularLLM.Tests.StructureTests;
 
+/// <summary>
+/// English rules for lift simulation (derived from SimulateChunksLogic + LiftManager):
+///
+/// 1. Inside a lift zone, net force = gravity(17) - liftForce(20) = -3 per frame (upward).
+///    This gives velocityY = -1 on the very first frame (fractional underflow).
+/// 2. Lift material is Passable — moving cells can enter and exit the lift zone freely.
+/// 3. When a cell leaves a lift tile position, MoveCell restores the lift material there.
+/// 4. Both powder and liquid materials are pushed upward inside lift zones.
+/// 5. Material conservation: lifts move material, they don't create or destroy it.
+///    Structure materials (lift tiles) are excluded from conservation counting.
+/// </summary>
 public class LiftSimulationTests
 {
     [Fact]
@@ -20,14 +31,11 @@ public class LiftSimulationTests
 
         // Place sand inside the lift zone near the bottom (y=70 is in the bottom block)
         sim.Set(34, 70, Materials.Sand);
+        var counts = sim.SnapshotMaterialCounts();
 
         // After 20 steps, the sand should have risen significantly within the lift zone
         // (approximately 1 cell/frame upward due to net -3 fractional force)
-        sim.Step(20);
-
-        // Sand should still exist (material conservation)
-        int sandCount = WorldAssert.CountMaterial(sim.World, Materials.Sand);
-        Assert.Equal(1, sandCount);
+        sim.StepWithInvariants(20, counts);
 
         // Sand should have moved upward from y=70. After 20 steps at ~1 cell/frame,
         // it should be around y=50, which is well above the starting y=70
@@ -59,14 +67,11 @@ public class LiftSimulationTests
 
         // Place water inside the lift zone
         sim.Set(34, 96, Materials.Water);
+        var counts = sim.SnapshotMaterialCounts();
 
         // After 10 steps, water should have risen from y=96
         // (liquid in a lift zone gets upward force, ~1 cell/frame)
-        sim.Step(10);
-
-        // Water should still exist
-        int waterCount = WorldAssert.CountMaterial(sim.World, Materials.Water);
-        Assert.Equal(1, waterCount);
+        sim.StepWithInvariants(10, counts);
 
         // Find the water position
         int waterY = -1;
@@ -100,10 +105,8 @@ public class LiftSimulationTests
                 placed++;
             }
 
-        sim.Step(1000);
-
-        int remaining = WorldAssert.CountMaterial(sim.World, Materials.Sand);
-        Assert.Equal(placed, remaining);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(1000, counts);
     }
 
     [Fact]
@@ -118,13 +121,9 @@ public class LiftSimulationTests
 
         // Place sand above the lift
         sim.Set(34, 50, Materials.Sand);
+        var counts = sim.SnapshotMaterialCounts();
 
-        sim.Step(200);
-
-        // Sand should have entered the lift zone or been pushed up and out
-        // Either way, it should NOT be stuck above the lift as if blocked
-        int sandCount = WorldAssert.CountMaterial(sim.World, Materials.Sand);
-        Assert.Equal(1, sandCount);
+        sim.StepWithInvariants(200, counts);
     }
 
     [Fact]
@@ -139,8 +138,9 @@ public class LiftSimulationTests
 
         // Place sand in the lift zone
         sim.Set(34, 85, Materials.Sand);
+        var counts = sim.SnapshotMaterialCounts();
 
-        sim.Step(500);
+        sim.StepWithInvariants(500, counts);
 
         // The cell at (34,85) should have lift material restored (sand moved out)
         byte matAt85 = sim.Get(34, 85);

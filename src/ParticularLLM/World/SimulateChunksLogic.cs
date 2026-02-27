@@ -282,37 +282,11 @@ public class SimulateChunksLogic
         int netForce = fractionalGravity;
         if (inLift)
             netForce -= liftForce;
-
-        int newFracY = cell.velocityFracY + netForce;
-
-        if (newFracY >= 256)
-        {
-            cell.velocityFracY = (byte)(newFracY - 256);
-            cell.velocityY = (sbyte)Math.Min(cell.velocityY + gravity, maxVelocity);
-        }
-        else if (newFracY < 0)
-        {
-            cell.velocityFracY = (byte)(newFracY + 256);
-            cell.velocityY = (sbyte)Math.Max(cell.velocityY - gravity, -maxVelocity);
-        }
-        else
-        {
-            cell.velocityFracY = (byte)newFracY;
-        }
+        ApplyFractionalForceY(ref cell, netForce);
 
         // Apply lateral exit force at top of lift (fountain effect)
-        if (inLift && liftExitLateralForce > 0)
-        {
-            bool isExitRow = (y == 0) || liftTiles == null ||
-                             liftTiles[(y - 1) * width + x].liftId == 0;
-            if (isExitRow)
-            {
-                int localX = x & 7;
-                int lateralSign = (2 * localX - 7);
-                int lateralForceValue = lateralSign * liftExitLateralForce;
-                ApplyFractionalForceX(ref cell, lateralForceValue);
-            }
-        }
+        if (inLift)
+            ApplyLiftExitForce(ref cell, x, y);
 
         // Compute effective velocity for Bresenham trace
         int vx = cell.velocityX;
@@ -459,37 +433,11 @@ public class SimulateChunksLogic
         int netForce = fractionalGravity;
         if (inLift)
             netForce -= liftForce;
-
-        int newFracY = cell.velocityFracY + netForce;
-
-        if (newFracY >= 256)
-        {
-            cell.velocityFracY = (byte)(newFracY - 256);
-            cell.velocityY = (sbyte)Math.Min(cell.velocityY + gravity, maxVelocity);
-        }
-        else if (newFracY < 0)
-        {
-            cell.velocityFracY = (byte)(newFracY + 256);
-            cell.velocityY = (sbyte)Math.Max(cell.velocityY - gravity, -maxVelocity);
-        }
-        else
-        {
-            cell.velocityFracY = (byte)newFracY;
-        }
+        ApplyFractionalForceY(ref cell, netForce);
 
         // Apply lateral exit force at top of lift (fountain effect)
-        if (inLift && liftExitLateralForce > 0)
-        {
-            bool isExitRow = (y == 0) || liftTiles == null ||
-                             liftTiles[(y - 1) * width + x].liftId == 0;
-            if (isExitRow)
-            {
-                int localX = x & 7;
-                int lateralSign = (2 * localX - 7);
-                int lateralForceValue = lateralSign * liftExitLateralForce;
-                ApplyFractionalForceX(ref cell, lateralForceValue);
-            }
-        }
+        if (inLift)
+            ApplyLiftExitForce(ref cell, x, y);
 
         // Compute effective velocity for Bresenham trace
         int vx = cell.velocityX;
@@ -539,12 +487,12 @@ public class SimulateChunksLogic
             // Trace failed to move — try diagonal fall/rise as fallback
             if (vy > 0)
             {
-                if (TryDiagonalFall(x, y, cell, mat.density))
+                if (TryDiagonalMove(x, y, cell, mat.density, 1))
                     return;
             }
             else if (vy < 0)
             {
-                if (TryDiagonalRise(x, y, cell, mat.density))
+                if (TryDiagonalMove(x, y, cell, mat.density, -1))
                     return;
             }
         }
@@ -825,6 +773,52 @@ public class SimulateChunksLogic
 
     // ===== FRACTIONAL FORCE HELPERS =====
 
+    /// <summary>
+    /// Apply a vertical force using fractional accumulation. Shared by powder and liquid gravity.
+    /// When the accumulator overflows (>= 256), velocity increments by gravity.
+    /// When it underflows (&lt; 0), velocity decrements (e.g., lift pushing upward).
+    /// </summary>
+    private void ApplyFractionalForceY(ref Cell cell, int force)
+    {
+        int newFracY = cell.velocityFracY + force;
+
+        if (newFracY >= 256)
+        {
+            cell.velocityFracY = (byte)(newFracY - 256);
+            cell.velocityY = (sbyte)Math.Min(cell.velocityY + gravity, maxVelocity);
+        }
+        else if (newFracY < 0)
+        {
+            cell.velocityFracY = (byte)(newFracY + 256);
+            cell.velocityY = (sbyte)Math.Max(cell.velocityY - gravity, -maxVelocity);
+        }
+        else
+        {
+            cell.velocityFracY = (byte)newFracY;
+        }
+    }
+
+    /// <summary>
+    /// Apply lateral exit force at the top of a lift (fountain effect).
+    /// Pushes material outward based on its position within the lift column.
+    /// Shared by powder and liquid simulation.
+    /// </summary>
+    private void ApplyLiftExitForce(ref Cell cell, int x, int y)
+    {
+        if (liftExitLateralForce <= 0)
+            return;
+
+        bool isExitRow = (y == 0) || liftTiles == null ||
+                         liftTiles[(y - 1) * width + x].liftId == 0;
+        if (isExitRow)
+        {
+            int localX = x & 7;
+            int lateralSign = (2 * localX - 7);
+            int lateralForceValue = lateralSign * liftExitLateralForce;
+            ApplyFractionalForceX(ref cell, lateralForceValue);
+        }
+    }
+
     private void ApplyFractionalForceX(ref Cell cell, int force)
     {
         int newFracX = cell.velocityFracX + force;
@@ -850,42 +844,25 @@ public class SimulateChunksLogic
 
     // ===== LIQUID FALLBACK HELPERS =====
 
-    private bool TryDiagonalFall(int x, int y, Cell cell, byte density)
+    /// <summary>
+    /// Try to move diagonally in the given vertical direction (dy=1 for fall, dy=-1 for rise).
+    /// Alternates left/right priority based on position and frame for symmetry.
+    /// </summary>
+    private bool TryDiagonalMove(int x, int y, Cell cell, byte density, int dy)
     {
         bool tryLeftFirst = ((x + y + currentFrame) & 1) == 0;
         int dx1 = tryLeftFirst ? -1 : 1;
         int dx2 = tryLeftFirst ? 1 : -1;
 
-        if (CanMoveTo(x + dx1, y + 1, density))
+        if (CanMoveTo(x + dx1, y + dy, density))
         {
-            MoveCell(x, y, x + dx1, y + 1, cell);
+            MoveCell(x, y, x + dx1, y + dy, cell);
             return true;
         }
 
-        if (CanMoveTo(x + dx2, y + 1, density))
+        if (CanMoveTo(x + dx2, y + dy, density))
         {
-            MoveCell(x, y, x + dx2, y + 1, cell);
-            return true;
-        }
-
-        return false;
-    }
-
-    private bool TryDiagonalRise(int x, int y, Cell cell, byte density)
-    {
-        bool tryLeftFirst = ((x + y + currentFrame) & 1) == 0;
-        int dx1 = tryLeftFirst ? -1 : 1;
-        int dx2 = tryLeftFirst ? 1 : -1;
-
-        if (CanMoveTo(x + dx1, y - 1, density))
-        {
-            MoveCell(x, y, x + dx1, y - 1, cell);
-            return true;
-        }
-
-        if (CanMoveTo(x + dx2, y - 1, density))
-        {
-            MoveCell(x, y, x + dx2, y - 1, cell);
+            MoveCell(x, y, x + dx2, y + dy, cell);
             return true;
         }
 

@@ -3,12 +3,23 @@ using ParticularLLM.Tests.Helpers;
 
 namespace ParticularLLM.Tests.IntegrationTests;
 
+/// <summary>
+/// End-to-end tests for structure interactions with cell simulation.
+///
+/// English rules:
+/// 1. Sand on a right-moving belt is carried rightward until it reaches the belt's end,
+///    then falls off under gravity. After settling, the sand must be below the belt level.
+/// 2. A wall is an impenetrable static barrier. Sand falling onto a wall rests on its top
+///    surface and cannot pass through.
+/// 3. A full pipeline (belt chain + wall container + gravity) must conserve all placed
+///    material every frame, not just at the end.
+/// </summary>
 public class BeltLiftComboTests
 {
     [Fact]
     public void Sand_OnBelt_FallsOffEnd()
     {
-        // Sand on a belt gets carried to the edge, then falls off
+        // Rule 1: sand on belt gets carried to edge, falls off, settles below belt level
         var sim = new SimulationFixture(128, 128);
         sim.Fill(0, 120, 128, 8, Materials.Stone);  // Floor
 
@@ -21,7 +32,8 @@ public class BeltLiftComboTests
         int surfaceY = 80 - 1;
         sim.Set(26, surfaceY - 10, Materials.Sand);
 
-        sim.Step(500);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(500, counts);
 
         int sandCount = WorldAssert.CountMaterial(sim.World, Materials.Sand);
         Assert.Equal(1, sandCount);
@@ -34,6 +46,7 @@ public class BeltLiftComboTests
     [Fact]
     public void WallBlocksSandFalling()
     {
+        // Rule 2: wall is impenetrable — sand rests on wall top surface
         var sim = new SimulationFixture(128, 128);
         var walls = new WallManager(sim.World);
         walls.PlaceWall(32, 80);  // Wall block at (32,80)-(39,87)
@@ -41,7 +54,8 @@ public class BeltLiftComboTests
 
         sim.Set(35, 50, Materials.Sand);
 
-        sim.Step(500);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(500, counts);
 
         // Sand should be conserved
         Assert.Equal(1, WorldAssert.CountMaterial(sim.World, Materials.Sand));
@@ -55,6 +69,7 @@ public class BeltLiftComboTests
     [Fact]
     public void FullPipeline_MaterialConservation()
     {
+        // Rule 3: full pipeline conserves every frame
         var sim = new SimulationFixture(256, 256);
         sim.Fill(0, 240, 256, 16, Materials.Stone);
 
@@ -82,7 +97,8 @@ public class BeltLiftComboTests
                 placed++;
             }
 
-        sim.Step(2000);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(2000, counts);
 
         int remaining = WorldAssert.CountMaterial(sim.World, Materials.Sand);
         Assert.Equal(placed, remaining);

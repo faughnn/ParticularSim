@@ -151,6 +151,8 @@ public static class WorldDump
         Materials.Ash => 'a',
         Materials.Smoke => 's',
         Materials.Furnace => 'X',
+        Materials.PistonBase => 'P',
+        Materials.PistonArm => 'p',
         Materials.LiftUp or Materials.LiftUpLight => '|',
         _ when Materials.IsBelt(mat) => '=',
         _ => '?',

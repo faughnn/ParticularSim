@@ -2,6 +2,13 @@ using ParticularLLM;
 
 namespace ParticularLLM.Tests.CoreTests;
 
+/// <summary>
+/// Contract: ClusterData is a rigid body container holding pixels, position, velocity, and physics properties.
+/// - Each cluster has a unique ushort Id assigned at creation.
+/// - Pixels are stored as (localX, localY, materialId) offsets from cluster center.
+/// - Position (X, Y, Rotation) and velocity (VelocityX, VelocityY, AngularVelocity) use float precision.
+/// - Pixel lookup grid provides O(1) material queries at local coordinates.
+/// </summary>
 public class ClusterDataTests
 {
     [Fact]

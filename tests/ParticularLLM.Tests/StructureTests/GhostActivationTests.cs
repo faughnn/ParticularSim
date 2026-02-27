@@ -3,6 +3,22 @@ using ParticularLLM.Tests.Helpers;
 
 namespace ParticularLLM.Tests.StructureTests;
 
+/// <summary>
+/// Contract: Ghost structure activation.
+///
+/// Structures placed on soft terrain start as "ghosts" — they reserve the space but don't
+/// write their material until the terrain is cleared. Ghost activation rules:
+///
+/// - Belt ghosts: activate when ALL 64 cells in the 8x8 area are Air (no material of any kind).
+///   Even Sand or Water blocks activation.
+/// - Wall ghosts: same as belts — activate only when all cells are Air.
+/// - Lift ghosts: activate when no Ground cells remain. Sand, Water, and other non-Ground
+///   materials are allowed (lifts are more permissive than belts/walls).
+/// - On activation, the structure writes its material to Air cells only.
+///   Non-Air cells (like Sand inside an activated lift) are preserved.
+/// - Ghost structures still block non-ghost material from entering their zone
+///   via the CanMoveTo ghost-blocking check.
+/// </summary>
 public class GhostActivationTests
 {
     [Fact]

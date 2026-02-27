@@ -2,6 +2,16 @@ using ParticularLLM;
 
 namespace ParticularLLM.Tests.CoreTests;
 
+/// <summary>
+/// Contract: CellWorld is the core grid data structure.
+/// - Constructor allocates width*height cells, all initialized to Air at room temperature.
+/// - Chunk grid is ceil(width/64) x ceil(height/64).
+/// - SetCell/GetCell provide bounds-safe access; out-of-bounds Set is a no-op, Get returns Air.
+/// - SetCell resets velocity and flags (full cell replacement).
+/// - SetCell marks the containing chunk dirty for simulation.
+/// - MarkDirtyWithNeighbors wakes adjacent chunks when a cell near a boundary changes.
+/// - ResetDirtyState clears dirty flags and records activeLastFrame for next-frame neighbor waking.
+/// </summary>
 public class CellWorldTests
 {
     [Fact]

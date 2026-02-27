@@ -3,6 +3,29 @@ using ParticularLLM.Tests.Helpers;
 
 namespace ParticularLLM.Tests.SimulationTests;
 
+/// <summary>
+/// Meta-property: Checkerboard chunk grouping for parallel processing.
+///
+/// The world is divided into 64x64 chunks. For parallelism, chunks are assigned to 4 groups
+/// in a checkerboard pattern (A/B/C/D) such that no two same-group chunks share an edge.
+/// This lets same-group chunks be processed in parallel without data races.
+///
+/// Pattern:  A B A B
+///           C D C D
+///           A B A B
+///
+/// Group = (chunkX &amp; 1) + ((chunkY &amp; 1) &lt;&lt; 1):
+///   A = even X, even Y
+///   B = odd X, even Y
+///   C = even X, odd Y
+///   D = odd X, odd Y
+///
+/// Invariants:
+/// - Every active chunk is assigned to exactly one group (no duplicates, no omissions)
+/// - Same-group chunks are at least 2 apart in X or Y (no shared edges)
+/// - Inactive (clean, no structures) chunks are not assigned to any group
+/// - Both flat and 4-pass orderings conserve materials (but may produce different final states)
+/// </summary>
 public class CheckerboardGroupTests
 {
     [Fact]

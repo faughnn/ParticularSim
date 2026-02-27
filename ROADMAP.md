@@ -235,7 +235,7 @@ Basic bucket system is implemented. Future bucket types:
 - [x] Cluster system — port to test harness with deterministic rigid body solver
 - [x] Cluster-material interaction — replace BFS displacement with physics-based push
 - [x] Cluster fracture system — crack-line partitioning with seeded RNG, material conservation
-- [ ] Piston system — port motor, cell chain pushing, plate mechanics
+- [x] Piston system — port motor, cell chain pushing, plate mechanics
 
 #### Cluster-Material Interaction Design
 

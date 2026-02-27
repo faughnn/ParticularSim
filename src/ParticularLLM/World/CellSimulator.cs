@@ -17,6 +17,7 @@ public class CellSimulator
     private WallManager? _wallManager;
     private FurnaceManager? _furnaceManager;
     private ClusterManager? _clusterManager;
+    private PistonManager? _pistonManager;
     private readonly HeatTransferSystem _heatTransfer = new();
 
     /// <summary>When true, heat diffusion runs each frame.</summary>
@@ -34,10 +35,15 @@ public class CellSimulator
     public void SetWallManager(WallManager manager) => _wallManager = manager;
     public void SetFurnaceManager(FurnaceManager manager) => _furnaceManager = manager;
     public void SetClusterManager(ClusterManager manager) => _clusterManager = manager;
+    public void SetPistonManager(PistonManager manager) => _pistonManager = manager;
 
     public void Simulate(CellWorld world)
     {
         world.currentFrame++;
+
+        // Piston motors (before clusters so plate cluster positions are up-to-date)
+        if (_pistonManager != null)
+            _pistonManager.UpdateMotors(world);
 
         // Cluster physics and sync (before cell simulation so displaced cells
         // can move naturally during the cell sim pass)

@@ -3,19 +3,32 @@ using ParticularLLM.Tests.Helpers;
 
 namespace ParticularLLM.Tests.SimulationTests;
 
+/// <summary>
+/// English rules for powder simulation (derived from SimulateChunksLogic.SimulatePowder):
+///
+/// 1. Powder falls downward due to gravity. Even at zero velocity, a "gravity pull" always
+///    attempts to move the cell down one row if the space is open (CanMoveTo with density check).
+/// 2. When powder can't fall straight down, it slides diagonally down-left or down-right
+///    (TryPowderSlide). Direction is randomized per cell/frame to avoid bias.
+/// 3. Stability resists sliding: a hash-based probability check means higher stability → steeper piles.
+///    Dirt (stability=50) piles steeper than sand (stability=0).
+/// 4. On collision, impact energy converts to scatter velocity (restitution-scaled diagonal bounce).
+/// 5. Powder displaces lighter materials via density comparison — sand (128) sinks through water (64).
+/// 6. Material conservation: MoveCell swaps source and target cells; no material is created or destroyed.
+/// 7. Powder stops when both diagonal-down positions are blocked and there's no velocity.
+/// 8. Known tradeoff: upward movement is slower than downward due to bottom-to-top scan order.
+/// </summary>
 public class PowderTests
 {
     [Fact]
     public void Sand_MovesDownward_FirstFrame()
     {
+        // Rule 1: powder falls due to gravity pull (tries y+1 even at zero velocity)
         using var sim = new SimulationFixture();
         sim.Set(32, 10, Materials.Sand);
-        sim.Step(1);
-        // After 1 frame: fractional gravity 17 added, no overflow yet so velocityY stays 0.
-        // But Phase 3 "simple slide" still tries diagonal fall (y+1).
-        // Sand should have moved down one row (diagonally).
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(1, counts);
         WorldAssert.IsAir(sim.World, 32, 10);
-        // Sand should be on row 11 somewhere (diagonal slide)
         int sandOnRow11 = WorldAssert.CountMaterial(sim.World, 0, 11, 64, 1, Materials.Sand);
         Assert.Equal(1, sandOnRow11);
     }
@@ -23,19 +36,22 @@ public class PowderTests
     [Fact]
     public void Sand_EventuallyFalls_After20Frames()
     {
+        // Rule 1: gravity continuously pulls powder downward
         using var sim = new SimulationFixture();
         sim.Set(32, 10, Materials.Sand);
-        sim.Step(20);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(20, counts);
         WorldAssert.IsAir(sim.World, 32, 10);
     }
 
     [Fact]
     public void Sand_FallsToBottomRow()
     {
+        // Rule 1+7: sand falls until it hits the world boundary (bottom row)
         using var sim = new SimulationFixture();
         sim.Set(32, 0, Materials.Sand);
-        sim.Step(500);
-        // Sand should reach the bottom row (63) - it may slide diagonally so check any x on row 63
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(500, counts);
         int sandOnBottom = WorldAssert.CountMaterial(sim.World, 0, 63, 64, 1, Materials.Sand);
         Assert.Equal(1, sandOnBottom);
     }
@@ -43,12 +59,12 @@ public class PowderTests
     [Fact]
     public void Sand_StopsAboveStone()
     {
+        // Rule 7: sand stops when blocked below by static material (stone)
         using var sim = new SimulationFixture();
-        // Fill an entire row with stone
         sim.Fill(0, 50, 64, 1, Materials.Stone);
         sim.Set(32, 10, Materials.Sand);
-        sim.Step(500);
-        // Sand must be on row 49 (just above stone), possibly at a different x due to diagonal slide
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(500, counts);
         int sandOnRow49 = WorldAssert.CountMaterial(sim.World, 0, 49, 64, 1, Materials.Sand);
         Assert.Equal(1, sandOnRow49);
     }
@@ -56,11 +72,13 @@ public class PowderTests
     [Fact]
     public void Sand_PilesDiagonally()
     {
+        // Rule 2: when blocked below, sand slides diagonally, forming a spread pile
         using var sim = new SimulationFixture();
         sim.Fill(0, 60, 64, 4, Materials.Stone);
         for (int i = 0; i < 5; i++)
             sim.Set(32, i, Materials.Sand);
-        sim.Step(500);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(500, counts);
         Assert.Equal(5, WorldAssert.CountMaterial(sim.World, Materials.Sand));
         int sandInCol32 = WorldAssert.CountMaterial(sim.World, 32, 0, 1, 60, Materials.Sand);
         Assert.True(sandInCol32 < 5, "Sand should spread diagonally, not stack in one column");
@@ -69,6 +87,7 @@ public class PowderTests
     [Fact]
     public void Sand_MaterialConservation_LargeAmount()
     {
+        // Rule 6: per-frame material conservation with 240 sand cells
         using var sim = new SimulationFixture();
         sim.Fill(0, 60, 64, 4, Materials.Stone);
         int placed = 0;
@@ -78,28 +97,33 @@ public class PowderTests
                 sim.Set(x, y, Materials.Sand);
                 placed++;
             }
-        sim.Step(500);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(500, counts);
         Assert.Equal(placed, WorldAssert.CountMaterial(sim.World, Materials.Sand));
     }
 
     [Fact]
     public void Sand_DoesNotMoveWhenSupported()
     {
+        // Rule 7: powder at rest with blocked diagonal stays put
         using var sim = new SimulationFixture();
         sim.Fill(0, 63, 64, 1, Materials.Stone);
         sim.Set(32, 62, Materials.Sand);
-        sim.Step(50);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(50, counts);
         WorldAssert.CellIs(sim.World, 32, 62, Materials.Sand);
     }
 
     [Fact]
     public void Dirt_PilesSteeper_HigherSlideResistance()
     {
+        // Rule 3: dirt (stability=50) resists diagonal sliding more than sand (stability=0)
         using var sim = new SimulationFixture(128, 128);
         sim.Fill(0, 120, 128, 8, Materials.Stone);
         for (int y = 0; y < 30; y++)
             sim.Set(64, y, Materials.Dirt);
-        sim.Step(1000);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(1000, counts);
         Assert.Equal(30, WorldAssert.CountMaterial(sim.World, Materials.Dirt));
         int nearCenter = WorldAssert.CountMaterial(sim.World, 60, 0, 9, 120, Materials.Dirt);
         Assert.True(nearCenter > 15, $"Dirt should pile steeply near center, but only {nearCenter}/30 in 9-wide zone");

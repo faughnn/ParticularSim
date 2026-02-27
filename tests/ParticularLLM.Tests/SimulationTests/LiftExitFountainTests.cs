@@ -53,7 +53,8 @@ public class LiftExitFountainTests
 
         // Place sand inside lift
         sim.Set(36, 84, Materials.Sand);
-        sim.Step(1);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(1, counts);
 
         Cell cell = sim.World.cells[0]; // placeholder
         // Find the sand cell
@@ -85,19 +86,17 @@ public class LiftExitFountainTests
 
         sim.Set(36, 85, Materials.Sand);
 
-        int sandBefore = WorldAssert.CountMaterial(sim.World, Materials.Sand);
+        var counts = sim.SnapshotMaterialCounts();
 
         // Check early (20 frames): sand should be rising inside the lift
-        sim.Step(20);
-        Assert.Equal(sandBefore, WorldAssert.CountMaterial(sim.World, Materials.Sand));
+        sim.StepWithInvariants(20, counts);
         var earlyPos = sim.FindMaterial(Materials.Sand);
         Assert.Single(earlyPos);
         Assert.True(earlyPos[0].y < 85,
             $"Sand should be rising in lift after 20 frames, but at y={earlyPos[0].y}");
 
         // Run longer: sand should exit lift and land on floor
-        sim.Step(480);
-        Assert.Equal(sandBefore, WorldAssert.CountMaterial(sim.World, Materials.Sand));
+        sim.StepWithInvariants(480, counts);
 
         var pos = sim.FindMaterial(Materials.Sand);
         Assert.Single(pos);
@@ -125,8 +124,9 @@ public class LiftExitFountainTests
 
         // Place sand at exit row (y=64 is top of lift, row above y=63 has no lift)
         sim.Set(32, 64, Materials.Sand); // localX = 0, leftmost → should push left
+        var counts = sim.SnapshotMaterialCounts();
 
-        sim.Step(1);
+        sim.StepWithInvariants(1, counts);
 
         // Find sand and check velocityX
         var pos = sim.FindMaterial(Materials.Sand);
@@ -163,11 +163,8 @@ public class LiftExitFountainTests
         sim.Set(50, 90, Materials.Sand);
         sim.Set(54, 90, Materials.Sand);
 
-        int sandBefore = WorldAssert.CountMaterial(sim.World, Materials.Sand);
-        sim.Step(500);
-
-        // Sand should be conserved
-        Assert.Equal(sandBefore, WorldAssert.CountMaterial(sim.World, Materials.Sand));
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(500, counts);
 
         // After exiting lift, sand should have spread horizontally,
         // NOT be stuck oscillating inside the lift
@@ -204,7 +201,8 @@ public class LiftExitFountainTests
 
         sim.Set(52, 86, Materials.Sand);
 
-        sim.Step(1000);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(1000, counts);
 
         // Sand should have settled somewhere — NOT still oscillating in the lift
         var pos = sim.FindMaterial(Materials.Sand);
@@ -234,10 +232,8 @@ public class LiftExitFountainTests
         sim.Set(49, 86, Materials.Sand);  // Left side (localX=1, pushes left)
         sim.Set(54, 86, Materials.Sand);  // Right side (localX=6, pushes right)
 
-        int sandBefore = WorldAssert.CountMaterial(sim.World, Materials.Sand);
-        sim.Step(500);
-
-        Assert.Equal(sandBefore, WorldAssert.CountMaterial(sim.World, Materials.Sand));
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(500, counts);
 
         var positions = sim.FindMaterial(Materials.Sand);
         Assert.Equal(2, positions.Count);
@@ -271,9 +267,10 @@ public class LiftExitFountainTests
 
         // Place sand at exit row
         sim.Set(48, 72, Materials.Sand); // leftmost (localX=0), strong push left
+        var counts = sim.SnapshotMaterialCounts();
 
         // Run enough frames for sand to exit and rise above lift
-        sim.Step(30);
+        sim.StepWithInvariants(30, counts);
 
         var pos = sim.FindMaterial(Materials.Sand);
         Assert.Single(pos);
@@ -307,11 +304,8 @@ public class LiftExitFountainTests
         sim.Set(53, 75, Materials.Sand);
         sim.Set(54, 70, Materials.Sand);
 
-        int sandBefore = WorldAssert.CountMaterial(sim.World, Materials.Sand);
-        sim.Step(1000);
-
-        // All sand should be conserved
-        Assert.Equal(sandBefore, WorldAssert.CountMaterial(sim.World, Materials.Sand));
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(1000, counts);
 
         // All sand should have settled on the floor, not stuck in the lift
         var positions = sim.FindMaterial(Materials.Sand);
@@ -339,10 +333,8 @@ public class LiftExitFountainTests
 
         sim.Set(52, 86, Materials.Water);
 
-        int waterBefore = WorldAssert.CountMaterial(sim.World, Materials.Water);
-        sim.Step(500);
-
-        Assert.Equal(waterBefore, WorldAssert.CountMaterial(sim.World, Materials.Water));
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(500, counts);
 
         // Water should have exited the lift (not stuck inside)
         var pos = sim.FindMaterial(Materials.Water);
@@ -367,8 +359,9 @@ public class LiftExitFountainTests
 
         // Place sand inside the lift
         sim.Set(52, 84, Materials.Sand);
+        var counts = sim.SnapshotMaterialCounts();
 
-        sim.Step(500);
+        sim.StepWithInvariants(500, counts);
 
         // Count lift material in the lift zone — should be fully restored
         int liftMaterialCount = 0;
@@ -412,9 +405,7 @@ public class LiftExitFountainTests
             }
         }
 
-        sim.Step(2000);
-
-        int remaining = WorldAssert.CountMaterial(sim.World, Materials.Sand);
-        Assert.Equal(sandCount, remaining);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(2000, counts);
     }
 }

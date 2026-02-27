@@ -3,6 +3,17 @@ using ParticularLLM.Tests.Helpers;
 
 namespace ParticularLLM.Tests.StructureTests;
 
+/// <summary>
+/// Contract: LiftManager placement operations.
+///
+/// - PlaceLift snaps to 8x8 grid, writes passable lift material (LiftUp/LiftUpLight)
+///   to all 64 cells. Lift material has Passable flag so moving cells can enter the zone.
+/// - Vertically adjacent lifts merge into a single logical lift (taller column).
+/// - Horizontally adjacent lifts do NOT merge (lifts are vertical columns only).
+/// - RemoveLift clears all 64 cells to Air. Removing the middle of a merged lift splits it.
+/// - Ghost lifts are created when placed on Ground (only Ground blocks lift activation,
+///   not Sand/Water/other materials).
+/// </summary>
 public class LiftPlacementTests
 {
     [Fact]

@@ -3,6 +3,17 @@ using ParticularLLM.Tests.Helpers;
 
 namespace ParticularLLM.Tests.SimulationTests;
 
+/// <summary>
+/// Meta-property: Simulation determinism.
+/// Given identical initial state, the simulation must produce byte-identical output
+/// regardless of how many times it's run. This is required because:
+/// - Chunk processing order is fixed (bottom-to-top, alternating X direction)
+/// - Hash functions use position + frame, not random seeds
+/// - No floating-point non-determinism (all physics uses integer/fixed-point math)
+///
+/// These tests verify full cell state (materialId, velocity, temperature, etc.),
+/// not just material positions.
+/// </summary>
 public class DeterminismTests
 {
     [Fact]

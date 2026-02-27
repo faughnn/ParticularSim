@@ -16,8 +16,9 @@ The Unity project can't be tested by Claude Code — it requires the Unity edito
 - Structure managers: Belt, Lift, Wall (placement, removal, ghost activation)
 - Belt simulation (horizontal material transport)
 - Lift simulation (upward force on materials)
-- Cluster system: rigid body solver, 3-step pipeline (clear/physics/sync), pixel lookup, push-based displacement, crack-line fracture
+- Cluster system: rigid body solver, 3-step pipeline (clear/physics/sync), pixel lookup, push-based displacement, crack-line fracture, cluster-cluster collision with momentum exchange
 - Cluster factory: creation from pixels or world regions, physics property calculation
+- Piston system: 16×16 block pistons, motor cycle, cell chain pushing, plate clusters, fill area
 - Extended region cross-chunk cell movement
 
 ## What's NOT Here
@@ -26,7 +27,7 @@ The Unity project can't be tested by Claude Code — it requires the Unity edito
 - Unity MonoBehaviours, PolygonCollider2D, marching squares outline generation
 - Player controls, game logic, UI
 - Burst/Jobs parallelism (simulation runs single-threaded; 4-pass mode validates grouping logic)
-- Cluster-cluster collision (clusters collide with static terrain but not each other yet)
+- Cluster separation push-out (clusters prevent grid overlap via sync priority, but no active penetration-depth separation force)
 
 ## Key Invariant
 
@@ -46,11 +47,17 @@ The Unity project can't be tested by Claude Code — it requires the Unity edito
 - Materials can change shape, move, or be redistributed, but must not disappear unless explicitly intended (e.g., burning, dissolving, or an explicit destroy action).
 - If an operation can't place all materials (congested area, out of bounds), retain the unplaced materials and give the player a way to retry — never discard them.
 
+**Realism Within Constraints**
+- When determining how something should behave, consider how it would behave in real-world physics, then adapt that to the constraints of the game (discrete grid, cell simulation, frame-based updates).
+- Real-world physics is the north star for design decisions. If two behaviors are equally easy to implement, pick the one that's more physically realistic.
+- The game is a physics sandbox — players should be able to reason about outcomes using their intuition about how the real world works.
+
 **Questions to ask before implementing:**
 1. Does this logic already exist somewhere? (Don't duplicate)
 2. Where should this logic live? (Single responsibility)
 3. Will other systems need this? (Design for reuse)
 4. Am I adding a special case or extending a system? (Prefer the latter)
+5. How would this behave in real-world physics? (Realism guides design)
 
 ## Testing & Development Workflow
 
@@ -128,7 +135,7 @@ When implementing a new feature from the roadmap:
 Tests define what correct behavior looks like. When a test fails:
 - If the test expectation is **physically wrong** (e.g., expecting sand to fall up), fix the test.
 - If the simulation is **not doing what it should** (e.g., liquids at rest never sorting by density, materials escaping containers, conservation violations), **fix the simulation code**. Don't weaken the test to accommodate broken behavior.
-- When in doubt, ask: "What would a player expect to see?" If the sim doesn't match player expectations, the sim is wrong.
+- When in doubt, ask: "How would this behave if it were real-world physics?" If the sim doesn't match what would happen physically, the sim is wrong.
 
 ### Known Tradeoffs (Not Bugs)
 

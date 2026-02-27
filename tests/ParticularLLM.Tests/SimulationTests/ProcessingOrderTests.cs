@@ -27,7 +27,8 @@ public class ProcessingOrderTests
             sim.Set(32, y, Materials.Sand);
 
         // After just 1 frame, bottom-to-top processing should move multiple grains
-        sim.Step(1);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(1, counts);
 
         // The bottom grain (y=50) should have moved down (freed space)
         // AND the grain above it should also have moved (because bottom was processed first)
@@ -53,9 +54,8 @@ public class ProcessingOrderTests
         for (int y = 0; y < 40; y++)
             sim.Set(64, y, Materials.Sand);
 
-        sim.Step(1000);
-
-        Assert.Equal(40, WorldAssert.CountMaterial(sim.World, Materials.Sand));
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(1000, counts);
 
         // Count sand left of center vs right of center
         int sandLeft = WorldAssert.CountMaterial(sim.World, 0, 0, 64, 120, Materials.Sand);
@@ -98,11 +98,12 @@ public class ProcessingOrderTests
 
         // Place sand inside the lift near the bottom
         sim.Set(34, 75, Materials.Sand);
+        var counts = sim.SnapshotMaterialCounts();
 
         // Track the sand's Y position early — after exiting the lift, sand spreads
         // horizontally and falls, so check while still rising.
         int initialY = 75;
-        sim.Step(20);
+        sim.StepWithInvariants(20, counts);
 
         // Find where the sand ended up (search wider X range since lateral force applied)
         int sandY = -1;
@@ -127,11 +128,11 @@ public class ProcessingOrderTests
         // Place sand at y=63 (last row of chunk 0's core), with nothing below
         sim.Set(32, 63, Materials.Sand);
 
-        sim.Step(30);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(30, counts);
 
         // Sand should have fallen past y=63 into chunk (0,1)'s territory
         WorldAssert.IsAir(sim.World, 32, 63);
-        Assert.Equal(1, WorldAssert.CountMaterial(sim.World, Materials.Sand));
 
         // Sand should be somewhere below y=63
         int sandBelowBoundary = WorldAssert.CountMaterial(sim.World, 0, 64, 128, 64, Materials.Sand);
@@ -154,9 +155,8 @@ public class ProcessingOrderTests
         for (int i = 0; i < 15; i++)
             sim.Set(64, 110 + i, Materials.Water);
 
-        sim.Step(2000);
-
-        Assert.Equal(15, WorldAssert.CountMaterial(sim.World, Materials.Water));
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(2000, counts);
 
         // Count water left vs right of center within the container
         int waterLeft = WorldAssert.CountMaterial(sim.World, 55, 100, 9, 27, Materials.Water);

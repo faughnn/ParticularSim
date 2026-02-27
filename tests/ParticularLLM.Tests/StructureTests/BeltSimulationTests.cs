@@ -3,6 +3,16 @@ using ParticularLLM.Tests.Helpers;
 
 namespace ParticularLLM.Tests.StructureTests;
 
+/// <summary>
+/// English rules for belt simulation (derived from CellSimulator.SimulateBelts):
+///
+/// 1. Belts transport material on their top surface (surfaceY = beltTopY - 1) in their direction.
+/// 2. Movement speed is 1 cell per DefaultSpeed frames (DefaultSpeed=3), so belt moves material
+///    every 3rd frame.
+/// 3. Belts move powder and liquid but not static materials.
+/// 4. Material below the surface (inside the belt body) is not transported.
+/// 5. Material conservation: belts move cells, they don't create or destroy material.
+/// </summary>
 public class BeltSimulationTests
 {
     [Fact]
@@ -17,7 +27,8 @@ public class BeltSimulationTests
         int surfaceY = 40 - 1;
         sim.Set(20, surfaceY, Materials.Sand);
 
-        sim.Step(100);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(100, counts);
 
         // Sand should have moved to the right from x=20
         WorldAssert.IsAir(sim.World, 20, surfaceY);
@@ -41,7 +52,8 @@ public class BeltSimulationTests
         int surfaceY = 40 - 1;
         sim.Set(44, surfaceY, Materials.Sand);
 
-        sim.Step(100);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(100, counts);
 
         // Sand should have moved away from x=44
         WorldAssert.IsAir(sim.World, 44, surfaceY);
@@ -58,7 +70,8 @@ public class BeltSimulationTests
         int surfaceY = 40 - 1;
         sim.Set(20, surfaceY, Materials.Water);
 
-        sim.Step(100);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(100, counts);
 
         // Water should not remain at x=20 on the surface
         // Check that it moved away from the original position
@@ -82,10 +95,8 @@ public class BeltSimulationTests
             placed++;
         }
 
-        sim.Step(200);
-
-        int remaining = WorldAssert.CountMaterial(sim.World, Materials.Sand);
-        Assert.Equal(placed, remaining);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(200, counts);
     }
 
     [Fact]
@@ -105,7 +116,8 @@ public class BeltSimulationTests
         // Place sand 5 rows above surface so it falls onto belt surface
         sim.Set(20, surfaceY - 5, Materials.Sand);
 
-        sim.Step(200);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(200, counts);
 
         // The sand should have fallen to the surface and been pushed right
         // It should NOT be at x=20 anymore
@@ -127,7 +139,8 @@ public class BeltSimulationTests
         sim.Set(20, surfaceY, Materials.Sand);
 
         // Step exactly 3 frames - belt activates at least once
-        sim.Step(3);
+        var counts = sim.SnapshotMaterialCounts();
+        sim.StepWithInvariants(3, counts);
 
         // Sand should still be near x=20 (moved at most 1 cell per activation)
         int totalSand = WorldAssert.CountMaterial(sim.World, Materials.Sand);

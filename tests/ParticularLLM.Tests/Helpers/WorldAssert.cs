@@ -3,8 +3,16 @@ using Xunit;
 
 namespace ParticularLLM.Tests.Helpers;
 
+/// <summary>
+/// Layer 2 assertion helpers for scenario tests.
+/// Provides cell-level checks, material counting, region dumps, and spatial assertions.
+/// </summary>
 public static class WorldAssert
 {
+    /// <summary>
+    /// Asserts that the cell at (x,y) contains the expected material.
+    /// On failure, dumps a 7x7 region around the cell for context.
+    /// </summary>
     public static void CellIs(CellWorld world, int x, int y, byte expectedMaterial)
     {
         byte actual = world.GetCell(x, y);
@@ -12,8 +20,10 @@ public static class WorldAssert
             $"Expected material {expectedMaterial} at ({x},{y}), got {actual}.\n{DumpRegion(world, x - 3, y - 3, 7, 7)}");
     }
 
+    /// <summary>Asserts that the cell at (x,y) is Air.</summary>
     public static void IsAir(CellWorld world, int x, int y) => CellIs(world, x, y, Materials.Air);
 
+    /// <summary>Asserts that the cell at (x,y) is not Air.</summary>
     public static void IsNotAir(CellWorld world, int x, int y)
     {
         byte actual = world.GetCell(x, y);
@@ -21,6 +31,7 @@ public static class WorldAssert
             $"Expected non-air at ({x},{y}), but got Air.\n{DumpRegion(world, x - 3, y - 3, 7, 7)}");
     }
 
+    /// <summary>Counts cells of a given material within a rectangular region.</summary>
     public static int CountMaterial(CellWorld world, int x, int y, int w, int h, byte materialId)
     {
         int count = 0;
@@ -31,6 +42,7 @@ public static class WorldAssert
         return count;
     }
 
+    /// <summary>Counts all cells of a given material in the entire world.</summary>
     public static int CountMaterial(CellWorld world, byte materialId)
     {
         int count = 0;
