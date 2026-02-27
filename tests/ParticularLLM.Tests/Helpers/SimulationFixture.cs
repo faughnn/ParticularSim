@@ -42,6 +42,19 @@ public class SimulationFixture : IDisposable
         World.MarkDirty(x, y);
     }
 
+    public void SetTemperature(int x, int y, byte temp)
+    {
+        if (x < 0 || x >= World.width || y < 0 || y >= World.height) return;
+        int index = y * World.width + x;
+        World.cells[index].temperature = temp;
+    }
+
+    public byte GetTemperature(int x, int y)
+    {
+        if (x < 0 || x >= World.width || y < 0 || y >= World.height) return 0;
+        return World.cells[y * World.width + x].temperature;
+    }
+
     public byte Get(int x, int y) => World.GetCell(x, y);
 
     public Cell GetCell(int x, int y)
