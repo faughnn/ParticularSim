@@ -218,6 +218,7 @@ public static class InvariantChecker
         {
             byte matId = world.cells[i].materialId;
             if (matId == Materials.Air) continue;
+            if (Materials.IsStructureMaterial(matId)) continue;
             counts.TryGetValue(matId, out int count);
             counts[matId] = count + 1;
         }

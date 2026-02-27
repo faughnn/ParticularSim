@@ -53,6 +53,12 @@ public static class Materials
         return materialId == PistonBase || materialId == PistonArm;
     }
 
+    public static bool IsStructureMaterial(byte materialId)
+    {
+        return IsBelt(materialId) || IsLift(materialId) || IsPiston(materialId) ||
+               materialId == Wall;
+    }
+
     public static bool IsSoftTerrain(byte materialId)
     {
         return materialId == Ground ||
