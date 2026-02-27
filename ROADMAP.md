@@ -228,11 +228,29 @@ Basic bucket system is implemented. Future bucket types:
 - [ ] Fix lift exit behavior (material falls back in, no lateral spread)
 
 ### Phase 2: Physics & Materials
-- [ ] 2D material movement (Bresenham ray-march)
-- [ ] Per-material physics attributes (powder, liquid, gas)
-- [ ] Heat transfer & material reactions
-- [ ] Furnace structure
-- [ ] Fix cluster fracture system (breaks too easily, overwrites walls)
+- [x] 2D material movement (Bresenham ray-march)
+- [x] Per-material physics attributes (powder, liquid, gas)
+- [x] Heat transfer & material reactions
+- [x] Furnace structure
+- [x] Cluster system — port to test harness with deterministic rigid body solver
+- [x] Cluster-material interaction — replace BFS displacement with physics-based push
+- [x] Cluster fracture system — crack-line partitioning with seeded RNG, material conservation
+- [ ] Piston system — port motor, cell chain pushing, plate mechanics
+
+#### Cluster-Material Interaction Design
+
+Replace the current BFS displacement hack with physically correct behavior:
+
+- **Cluster into air** — place pixels, no conflict.
+- **Cluster into powder/liquid** — push cells in the cluster's movement direction. Transfer cluster velocity to displaced cells, scaled by density ratio. Heavier clusters plow through light materials; dense materials resist and slow the cluster. Displaced cells move naturally via cell simulation on subsequent frames. No teleportation.
+- **Cluster into gas** — trivially displaced, negligible resistance to cluster.
+- **Cluster into static material (stone, wall, structures)** — cluster cannot displace it. Physics colliders prevent overlap. Cluster stops, bounces, or fractures on impact. Static material is never moved.
+
+Key principles:
+- Direction of displacement matches cluster movement direction (not random BFS)
+- Velocity transfer is proportional to cluster speed and inversely proportional to material density
+- No searching for empty spots — give displaced cells velocity and let cell sim handle the rest
+- Material conservation guaranteed (cells are pushed, never destroyed)
 
 ### Phase 3: Primitives & Building
 - [ ] Piston improvements (ghost mode, material conservation)

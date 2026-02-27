@@ -16,15 +16,17 @@ The Unity project can't be tested by Claude Code — it requires the Unity edito
 - Structure managers: Belt, Lift, Wall (placement, removal, ghost activation)
 - Belt simulation (horizontal material transport)
 - Lift simulation (upward force on materials)
-- Cluster data stub
+- Cluster system: rigid body solver, 3-step pipeline (clear/physics/sync), pixel lookup, push-based displacement, crack-line fracture
+- Cluster factory: creation from pixels or world regions, physics property calculation
 - Extended region cross-chunk cell movement
 
 ## What's NOT Here
 
 - Rendering, shaders, GPU compute
-- Unity MonoBehaviours, Rigidbody2D, Physics2D
+- Unity MonoBehaviours, PolygonCollider2D, marching squares outline generation
 - Player controls, game logic, UI
 - Burst/Jobs parallelism (simulation runs single-threaded; 4-pass mode validates grouping logic)
+- Cluster-cluster collision (clusters collide with static terrain but not each other yet)
 
 ## Key Invariant
 
