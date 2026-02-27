@@ -30,6 +30,26 @@ The Unity project can't be tested by Claude Code — it requires the Unity edito
 
 **Material conservation**: total material count must never change unless explicitly intended. Many tests assert this.
 
+## Architecture Philosophy
+
+**Systems, Not Patches**
+- Build unified systems that handle all cases, not individual fixes for individual problems
+- One source of truth — if logic exists, it lives in ONE place
+- No special-case rules for specific scenarios
+- If a "fix" only addresses one situation, step back and design a system that handles ALL similar situations
+- When something doesn't work, ask: "What system is missing?" not "What patch can I add?"
+
+**Material Conservation**
+- Materials must NEVER silently vanish. Total material quantity must be preserved.
+- Materials can change shape, move, or be redistributed, but must not disappear unless explicitly intended (e.g., burning, dissolving, or an explicit destroy action).
+- If an operation can't place all materials (congested area, out of bounds), retain the unplaced materials and give the player a way to retry — never discard them.
+
+**Questions to ask before implementing:**
+1. Does this logic already exist somewhere? (Don't duplicate)
+2. Where should this logic live? (Single responsibility)
+3. Will other systems need this? (Design for reuse)
+4. Am I adding a special case or extending a system? (Prefer the latter)
+
 ## Testing & Development Workflow
 
 ### Three Test Layers
