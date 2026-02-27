@@ -150,6 +150,7 @@ public static class WorldDump
         Materials.Coal => 'C',
         Materials.Ash => 'a',
         Materials.Smoke => 's',
+        Materials.Furnace => 'X',
         Materials.LiftUp or Materials.LiftUpLight => '|',
         _ when Materials.IsBelt(mat) => '=',
         _ => '?',

@@ -26,6 +26,7 @@ public static class Materials
     public const byte Wall = 21;
     public const byte PistonBase = 22;
     public const byte PistonArm = 23;
+    public const byte Furnace = 24;
 
     public const int Count = 256;
 
@@ -56,7 +57,7 @@ public static class Materials
     public static bool IsStructureMaterial(byte materialId)
     {
         return IsBelt(materialId) || IsLift(materialId) || IsPiston(materialId) ||
-               materialId == Wall;
+               materialId == Wall || materialId == Furnace;
     }
 
     public static bool IsSoftTerrain(byte materialId)
@@ -226,6 +227,12 @@ public static class Materials
             density = 255,
             behaviour = BehaviourType.Static, flags = MaterialFlags.None,
             baseColour = new Color32(120, 120, 140, 255), colourVariation = 5,
+        };
+        defs[Furnace] = new MaterialDef
+        {
+            density = 255,
+            behaviour = BehaviourType.Static, flags = MaterialFlags.ConductsHeat,
+            baseColour = new Color32(140, 60, 30, 255), colourVariation = 5,
         };
 
         return defs;
