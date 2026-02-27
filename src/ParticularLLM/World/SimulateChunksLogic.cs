@@ -48,6 +48,10 @@ public class SimulateChunksLogic
     public byte liftForce;   // Lift force (default 20, gravity is 17 so net is -3 upward)
     public short liftExitLateralForce; // Lateral force at lift exit row (fountain effect)
 
+    // When true, temperature-triggered reactions (melting, freezing, boiling, burning) are active.
+    // Should be enabled alongside heat transfer to avoid instant phase changes at ambient temperature.
+    public bool enableReactions;
+
     private const int ChunkSize = 64;
 
     // Extended region bounds for current chunk (128x128 area with 32px buffer)
@@ -112,16 +116,30 @@ public class SimulateChunksLogic
 
         MaterialDef mat = materials[cell.materialId];
 
-        // Skip static materials
-        if (mat.behaviour == BehaviourType.Static)
-            return;
-
         // Skip if already processed this frame (prevents double-processing across chunks)
         byte frameModulo = (byte)(currentFrame & 0xFF);
         if (cell.frameUpdated == frameModulo)
             return;
         cell.frameUpdated = frameModulo;
         cells[index] = cell;
+
+        // Phase 0: Check phase changes and burning (only when reactions are enabled)
+        if (enableReactions)
+        {
+            if (CheckPhaseChange(x, y, index, ref cell, mat))
+                return;
+
+            if ((cell.flags & CellFlags.Burning) != 0)
+            {
+                SimulateBurning(x, y, index, ref cell, mat);
+                if (cell.materialId == Materials.Air)
+                    return;
+            }
+        }
+
+        // Skip static materials for movement simulation
+        if (mat.behaviour == BehaviourType.Static)
+            return;
 
         // Simulate based on behaviour type
         switch (mat.behaviour)
@@ -136,6 +154,116 @@ public class SimulateChunksLogic
                 SimulateGas(x, y, cell, mat);
                 break;
         }
+    }
+
+    // ===== PHASE CHANGES & BURNING =====
+
+    /// <summary>
+    /// Check if the cell's temperature triggers a phase change (melt, freeze, boil, ignite).
+    /// Returns true if the material was transformed (caller should return).
+    /// </summary>
+    private bool CheckPhaseChange(int x, int y, int index, ref Cell cell, MaterialDef mat)
+    {
+        byte temp = cell.temperature;
+
+        // Melting: solid/powder → liquid
+        if (mat.meltTemp > 0 && temp >= mat.meltTemp && mat.materialOnMelt != 0)
+        {
+            cell.materialId = mat.materialOnMelt;
+            cell.velocityX = 0;
+            cell.velocityY = 0;
+            cell.flags = (byte)(cell.flags & ~CellFlags.Burning);
+            cells[index] = cell;
+            MarkDirtyInternal(x, y);
+            return true;
+        }
+
+        // Freezing: liquid → solid
+        if (mat.freezeTemp > 0 && temp <= mat.freezeTemp && mat.materialOnFreeze != 0)
+        {
+            cell.materialId = mat.materialOnFreeze;
+            cell.velocityX = 0;
+            cell.velocityY = 0;
+            cells[index] = cell;
+            MarkDirtyInternal(x, y);
+            return true;
+        }
+
+        // Boiling: liquid → gas
+        if (mat.boilTemp > 0 && temp >= mat.boilTemp && mat.materialOnBoil != 0)
+        {
+            cell.materialId = mat.materialOnBoil;
+            cell.velocityX = 0;
+            cell.velocityY = -1; // Gas rises
+            cells[index] = cell;
+            MarkDirtyInternal(x, y);
+            return true;
+        }
+
+        // Ignition: flammable material catches fire
+        if (mat.ignitionTemp > 0 && temp >= mat.ignitionTemp &&
+            (mat.flags & MaterialFlags.Flammable) != 0 &&
+            (cell.flags & CellFlags.Burning) == 0)
+        {
+            cell.flags |= CellFlags.Burning;
+            cells[index] = cell;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Simulate a burning cell: emit heat, spread fire to neighbors, consume fuel.
+    /// </summary>
+    private void SimulateBurning(int x, int y, int index, ref Cell cell, MaterialDef mat)
+    {
+        // Emit heat: +5 degrees per frame
+        cell.temperature = (byte)Math.Min(255, cell.temperature + 5);
+
+        // Spread fire to flammable neighbors (~10% chance per neighbor per frame)
+        SpreadFire(x - 1, y, 26);
+        SpreadFire(x + 1, y, 26);
+        SpreadFire(x, y - 1, 26);
+        SpreadFire(x, y + 1, 26);
+
+        // Consume fuel (~2% chance per frame)
+        uint burnHash = HashPosition(x, y, currentFrame);
+        if ((burnHash & 255) < 5) // ~2% chance
+        {
+            // Transform to burn product (ash or smoke)
+            cell.materialId = mat.materialOnBurn;
+            cell.flags = (byte)(cell.flags & ~CellFlags.Burning);
+            cell.velocityX = 0;
+            cell.velocityY = 0;
+            cell.temperature = HeatSettings.AmbientTemperature;
+            cells[index] = cell;
+            MarkDirtyInternal(x, y);
+            return;
+        }
+
+        cells[index] = cell;
+    }
+
+    private void SpreadFire(int nx, int ny, int chance)
+    {
+        if (!IsInBounds(nx, ny)) return;
+        int ni = ny * width + nx;
+        Cell neighbor = cells[ni];
+        if (neighbor.materialId == Materials.Air) return;
+
+        MaterialDef nMat = materials[neighbor.materialId];
+        if ((nMat.flags & MaterialFlags.Flammable) == 0) return;
+
+        // Heat neighbor
+        neighbor.temperature = (byte)Math.Min(255, neighbor.temperature + 10);
+
+        // Random chance to ignite
+        uint hash = HashPosition(nx, ny, currentFrame);
+        if ((hash & 255) < chance)
+            neighbor.flags |= CellFlags.Burning;
+
+        cells[ni] = neighbor;
+        MarkDirtyInternal(nx, ny);
     }
 
     // ===== POWDER SIMULATION =====

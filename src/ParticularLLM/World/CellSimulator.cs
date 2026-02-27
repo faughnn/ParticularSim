@@ -54,6 +54,7 @@ public class CellSimulator
             maxVelocity = PhysicsSettings.MaxVelocity,
             liftForce = PhysicsSettings.LiftForce,
             liftExitLateralForce = PhysicsSettings.LiftExitLateralForce,
+            enableReactions = EnableHeatTransfer, // Reactions require heat system
         };
 
         if (UseFourPassGrouping)
