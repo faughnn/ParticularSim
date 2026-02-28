@@ -9,11 +9,12 @@ namespace ParticularLLM.Tests.SimulationTests;
 /// English rules (derived from HeatTransferSystem.cs):
 ///
 /// 1. Only materials with ConductsHeat flag participate in heat diffusion.
-///    Conducting materials: Stone, Water, Steam, IronOre, MoltenIron, Iron, Coal, Ground.
-///    Non-conducting: Air, Sand, Oil, Ash, Smoke, Belt variants, Dirt, Lift, Wall, Piston.
+///    Conducting materials: Air, Stone, Water, Steam, IronOre, MoltenIron, Iron, Coal, Ground, Furnace.
+///    Non-conducting: Sand, Oil, Ash, Smoke, Belt variants, Dirt, Lift, Wall, Piston.
 /// 2. Each conducting cell averages its temperature with conducting cardinal neighbors.
-///    New temp = old + (avg - old) * ConductionRate / 256.
-///    ConductionRate = 64, so 25% blend toward neighbor average per frame.
+///    New temp = old + (avg - old) * mat.conductionRate / 256.
+///    Each material has its own conduction rate: Stone/Iron/MoltenIron/Furnace=64 (25%),
+///    Water/IronOre/Ground=48/32 (19%/12.5%), Air=8 (3%), Steam/Coal=32 (12.5%).
 /// 3. All conducting cells cool toward ambient (20) at CoolingRate=1 degree per frame.
 /// 4. Non-conducting cells keep their temperature unchanged (no diffusion, no cooling).
 /// 5. Double buffering: new temperatures written to temp buffer, then copied back.
@@ -267,11 +268,13 @@ public class HeatTransferTests
     [Fact]
     public void ConductionRate_25PercentBlend()
     {
-        // With ConductionRate=64 (25%), verify the math.
-        // A 200-degree stone cell with ONE 20-degree conducting neighbor:
-        // avgTemp = (200 + 20) / 2 = 110
-        // newTemp = 200 + (110 - 200) * 64 / 256 = 200 + (-90) * 64 / 256 = 200 - 22 = 178
-        // Then cooling: 178 > 20, so 178 - 1 = 177
+        // With per-material conduction (stone conductionRate=64 = 25%), verify the math.
+        // Hot stone at (8,8)=200, cold stone at (9,8)=20.
+        // Air now conducts (rate=8), so (8,8) has 5 conducting neighbors (including self):
+        //   (9,8)=20 stone, (7,8)=20 air, (8,7)=20 air, (8,9)=20 air, plus self=200
+        // avgTemp = (200 + 20 + 20 + 20 + 20) / 5 = 56
+        // newTemp = 200 + (56 - 200) * 64 / 256 = 200 + (-144) * 64 / 256 = 200 - 36 = 164
+        // Then cooling: 164 > 20, so 164 - 1 = 163
         using var sim = new SimulationFixture(16, 16);
         sim.Simulator.EnableHeatTransfer = true;
         sim.Set(8, 8, Materials.Stone);
@@ -282,8 +285,8 @@ public class HeatTransferTests
         sim.Step(1);
 
         byte hotTemp = sim.GetTemperature(8, 8);
-        // Expected: 177 (see calculation above)
-        Assert.Equal(177, hotTemp);
+        // Expected: 163 (see calculation above — air neighbors now conduct)
+        Assert.Equal(163, hotTemp);
     }
 
     // ===== HEAT DISABLED =====
@@ -301,5 +304,91 @@ public class HeatTransferTests
 
         byte temp = sim.GetTemperature(8, 8);
         Assert.Equal(200, temp);
+    }
+
+    // ===== PER-MATERIAL CONDUCTION =====
+
+    [Fact]
+    public void Air_ConductsHeatSlowly()
+    {
+        // Air has ConductsHeat flag with conductionRate=8 (3%).
+        // Surround one air cell with 4 hot stone cells at 255 to overwhelm the cooling rate.
+        // Air at center, temp=20, with 4 stone neighbors at 255:
+        //   totalTemp = 20 + 255*4 = 1040, conductingNeighbors = 5
+        //   avgTemp = 208, newTemp = 20 + (208-20)*8/256 = 20 + 5 = 25
+        //   After cooling: 25 - 1 = 24 (above ambient 20)
+        using var sim = new SimulationFixture(16, 16);
+        sim.Simulator.EnableHeatTransfer = true;
+        // 4 hot stone cells surrounding the air cell at (8,8)
+        sim.Set(7, 8, Materials.Stone);
+        sim.Set(9, 8, Materials.Stone);
+        sim.Set(8, 7, Materials.Stone);
+        sim.Set(8, 9, Materials.Stone);
+        sim.SetTemperature(7, 8, 255);
+        sim.SetTemperature(9, 8, 255);
+        sim.SetTemperature(8, 7, 255);
+        sim.SetTemperature(8, 9, 255);
+        // (8, 8) is air by default at ambient temperature
+
+        sim.Step(1);
+
+        byte airTemp = sim.GetTemperature(8, 8);
+        Assert.True(airTemp > HeatSettings.AmbientTemperature,
+            $"Air surrounded by hot stones should warm above ambient ({HeatSettings.AmbientTemperature}), got {airTemp}");
+    }
+
+    [Fact]
+    public void PerMaterialConduction_AirConductsSlowerThanStone()
+    {
+        // Compare heat propagation: stone chain vs stone-air-stone chain.
+        // Stone has conductionRate=64, Air has conductionRate=8.
+        // Surround the chains with non-conducting walls to prevent heat leaking sideways.
+        // Continuously re-heat the source each frame to maintain a temperature gradient.
+
+        // Setup 1: Stone chain insulated by walls
+        // Layout (y=7,8,9): wall row, stone chain, wall row
+        using var sim1 = new SimulationFixture(16, 16);
+        sim1.Simulator.EnableHeatTransfer = true;
+        for (int x = 4; x <= 10; x++)
+        {
+            sim1.Set(x, 7, Materials.Wall);
+            sim1.Set(x, 8, Materials.Stone);
+            sim1.Set(x, 9, Materials.Wall);
+        }
+        // Also wall-cap the ends
+        sim1.Set(4, 8, Materials.Wall);
+        sim1.Set(10, 8, Materials.Wall);
+        // Heat the source stone
+        sim1.SetTemperature(5, 8, 255);
+
+        // Setup 2: Stone-Air-Stone chain insulated by walls
+        using var sim2 = new SimulationFixture(16, 16);
+        sim2.Simulator.EnableHeatTransfer = true;
+        for (int x = 4; x <= 10; x++)
+        {
+            sim2.Set(x, 7, Materials.Wall);
+            sim2.Set(x, 9, Materials.Wall);
+        }
+        sim2.Set(4, 8, Materials.Wall);
+        sim2.Set(5, 8, Materials.Stone);
+        // (6,8), (7,8), (8,8) remain air
+        sim2.Set(9, 8, Materials.Stone);
+        sim2.Set(10, 8, Materials.Wall);
+        sim2.SetTemperature(5, 8, 255);
+
+        // Run with source re-heating each frame
+        for (int i = 0; i < 30; i++)
+        {
+            sim1.SetTemperature(5, 8, 255);
+            sim2.SetTemperature(5, 8, 255);
+            sim1.Step(1);
+            sim2.Step(1);
+        }
+
+        byte stoneFarEnd = sim1.GetTemperature(9, 8);
+        byte airFarEnd = sim2.GetTemperature(9, 8);
+
+        Assert.True(stoneFarEnd > airFarEnd,
+            $"Stone chain far end ({stoneFarEnd}) should be warmer than air chain far end ({airFarEnd})");
     }
 }

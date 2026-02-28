@@ -61,7 +61,7 @@ public class HeatTransferSystem
                 // Blend toward neighbor average
                 int avgTemp = totalTemp / conductingNeighbors;
                 int newTemp = cell.temperature +
-                    (avgTemp - cell.temperature) * HeatSettings.ConductionRate / 256;
+                    (avgTemp - cell.temperature) * mat.conductionRate / 256;
 
                 // Cool toward ambient
                 if (newTemp > HeatSettings.AmbientTemperature)
