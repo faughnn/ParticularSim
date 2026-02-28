@@ -5,13 +5,16 @@ public static class HeatSettings
     /// <summary>Temperature that all cells cool toward over time (room temperature).</summary>
     public const byte AmbientTemperature = 20;
 
-    /// <summary>Temperature change per frame toward ambient (1 degree per frame).</summary>
-    public const int CoolingRate = 1;
-
     /// <summary>
-    /// Fraction of the temperature difference transferred to/from neighbors per frame.
-    /// 64/256 = 25%. Must be &lt; 128 (50%) for numerical stability with in-place updates.
-    /// Uses integer math: newTemp = oldTemp + (avgNeighbor - oldTemp) * ConductionRate / 256.
+    /// Proportional cooling factor. Per frame, cooling accumulator gains (temp - ambient) * CoolingFactor.
+    /// When accumulator reaches 256, temperature drops 1 degree. Uses ushort accumulator for sub-integer precision.
+    /// Value of 3 gives equilibrium: 1 furnace wall ~105°, 2 walls ~190°, 3 walls 255°.
     /// </summary>
-    public const int ConductionRate = 64;
+    public const int CoolingFactor = 3;
+
+    /// <summary>Degrees added per emission pulse to the cell adjacent to a furnace block's facing direction.</summary>
+    public const int FurnaceHeatOutput = 1;
+
+    /// <summary>Frames between furnace heat emission pulses. Higher = slower heating.</summary>
+    public const int FurnaceHeatInterval = 1;
 }

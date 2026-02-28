@@ -3,7 +3,8 @@ namespace ParticularLLM;
 /// <summary>
 /// Double-buffered heat diffusion between adjacent cells.
 /// Heat flows from hot to cold cells. Only cells with the ConductsHeat flag participate.
-/// All cells gradually cool toward ambient temperature.
+/// All cells gradually cool toward ambient temperature using proportional cooling
+/// (Newton's law of cooling) — hotter cells cool faster.
 ///
 /// Pipeline position: after furnace heating, before cell simulation.
 /// </summary>
@@ -11,6 +12,9 @@ public class HeatTransferSystem
 {
     // Temporary buffer for double-buffered temperature updates
     private byte[] tempBuffer = Array.Empty<byte>();
+
+    // Accumulator for sub-integer proportional cooling (ushort per cell)
+    private ushort[] coolingAccum = Array.Empty<ushort>();
 
     /// <summary>
     /// Run one frame of heat diffusion across the entire world.
@@ -27,6 +31,9 @@ public class HeatTransferSystem
         // Ensure temp buffer is allocated
         if (tempBuffer.Length < totalCells)
             tempBuffer = new byte[totalCells];
+
+        if (coolingAccum.Length < totalCells)
+            coolingAccum = new ushort[totalCells];
 
         // Pass 1: compute new temperatures into temp buffer
         for (int y = 0; y < height; y++)
@@ -63,13 +70,29 @@ public class HeatTransferSystem
                 int newTemp = cell.temperature +
                     (avgTemp - cell.temperature) * mat.conductionRate / 256;
 
-                // Cool toward ambient
+                // Proportional cooling toward ambient (Newton's law)
                 if (newTemp > HeatSettings.AmbientTemperature)
-                    newTemp = Math.Max(HeatSettings.AmbientTemperature,
-                        newTemp - HeatSettings.CoolingRate);
+                {
+                    int diff = newTemp - HeatSettings.AmbientTemperature;
+                    coolingAccum[idx] += (ushort)(diff * HeatSettings.CoolingFactor);
+                    int degrees = coolingAccum[idx] / 256;
+                    if (degrees > 0)
+                    {
+                        coolingAccum[idx] -= (ushort)(degrees * 256);
+                        newTemp = Math.Max(HeatSettings.AmbientTemperature, newTemp - degrees);
+                    }
+                }
                 else if (newTemp < HeatSettings.AmbientTemperature)
-                    newTemp = Math.Min(HeatSettings.AmbientTemperature,
-                        newTemp + HeatSettings.CoolingRate);
+                {
+                    int diff = HeatSettings.AmbientTemperature - newTemp;
+                    coolingAccum[idx] += (ushort)(diff * HeatSettings.CoolingFactor);
+                    int degrees = coolingAccum[idx] / 256;
+                    if (degrees > 0)
+                    {
+                        coolingAccum[idx] -= (ushort)(degrees * 256);
+                        newTemp = Math.Min(HeatSettings.AmbientTemperature, newTemp + degrees);
+                    }
+                }
 
                 tempBuffer[idx] = (byte)Math.Clamp(newTemp, 0, 255);
             }
