@@ -6,15 +6,33 @@ public static class HeatSettings
     public const byte AmbientTemperature = 20;
 
     /// <summary>
-    /// Proportional cooling factor. Per frame, cooling accumulator gains (temp - ambient) * CoolingFactor.
-    /// When accumulator reaches 256, temperature drops 1 degree. Uses ushort accumulator for sub-integer precision.
-    /// Value of 3 gives equilibrium: 1 furnace wall ~105°, 2 walls ~190°, 3 walls 255°.
+    /// Accumulator threshold for sub-integer heating and cooling.
+    /// Both heating and cooling accumulators increment per frame; when they reach this
+    /// threshold, temperature changes by 1 degree. Higher = slower temperature changes.
+    /// Time constant τ = Threshold / CoolingFactor frames.
+    /// At 2048 with CoolingFactor=1: τ ≈ 34 sec at 60fps, 95% equilibrium in ~1.7 min.
     /// </summary>
-    public const int CoolingFactor = 3;
+    public const int AccumulatorThreshold = 2048;
 
-    /// <summary>Degrees added per emission pulse to the cell adjacent to a furnace block's facing direction.</summary>
-    public const int FurnaceHeatOutput = 1;
+    /// <summary>
+    /// Proportional cooling factor. Per frame, cooling accumulator gains (temp - ambient) * CoolingFactor.
+    /// When accumulator reaches AccumulatorThreshold, temperature drops 1 degree.
+    /// </summary>
+    public const int CoolingFactor = 1;
 
-    /// <summary>Frames between furnace heat emission pulses. Higher = slower heating.</summary>
-    public const int FurnaceHeatInterval = 1;
+    /// <summary>
+    /// Furnace heating accumulator increment per frame per emission source.
+    /// Each frame a cell is in a furnace emission zone, its heating accumulator gains this value.
+    /// When accumulator reaches AccumulatorThreshold, temperature rises 1 degree.
+    /// Equilibrium: T = Ambient + N * FurnaceHeatRate / CoolingFactor
+    /// where N = number of emission sources hitting the cell.
+    /// With rate=102, cooling=1: 1-wall ~122°, 2-wall ~224°.
+    /// </summary>
+    public const int FurnaceHeatRate = 102;
+
+    /// <summary>
+    /// How many cells deep each furnace block emits heat (uniform, no falloff).
+    /// With depth 4, two facing blocks across an 8-cell gap overlap perfectly in the middle.
+    /// </summary>
+    public const int FurnaceEmissionDepth = 4;
 }

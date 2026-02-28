@@ -113,7 +113,7 @@ public class CellSimulator
 
         // Furnace heat application (before heat diffusion so furnace heat participates in conduction)
         if (_furnaceManager != null)
-            _furnaceManager.SimulateFurnaces(world, world.currentFrame);
+            _furnaceManager.SimulateFurnaces(world);
 
         // Heat diffusion (after all movement, before next frame's simulation)
         if (EnableHeatTransfer)

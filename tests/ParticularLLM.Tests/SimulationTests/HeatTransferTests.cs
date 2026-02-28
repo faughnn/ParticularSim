@@ -16,7 +16,7 @@ namespace ParticularLLM.Tests.SimulationTests;
 ///    Each material has its own conduction rate: Stone/Iron/MoltenIron/Furnace=64 (25%),
 ///    Water/IronOre/Ground=48/32 (19%/12.5%), Air=8 (3%), Steam/Coal=32 (12.5%).
 /// 3. All conducting cells cool proportionally toward ambient (20) using Newton's law:
-///    accumulator += (temp - ambient) * CoolingFactor. When accumulator >= 256, temp drops 1 degree.
+///    accumulator += (temp - ambient) * CoolingFactor. When accumulator >= 2048, temp drops 1 degree.
 ///    Hotter cells cool faster; near-ambient cells cool very slowly.
 /// 4. Non-conducting cells keep their temperature unchanged (no diffusion, no cooling).
 /// 5. Double buffering: new temperatures written to temp buffer, then copied back.
@@ -53,15 +53,15 @@ public class HeatTransferTests
     public void HotConductor_EventuallyReachesAmbient()
     {
         // A hot stone cell surrounded by air (conducting slowly) should still cool to ambient.
-        // With proportional cooling, the last degree (21->20) takes ~86 frames
-        // (accumulator needs 256, gains 3/frame). 2000 frames is more than enough.
+        // With AccumulatorThreshold=2048 and CoolingFactor=1, the last degree (21->20) takes
+        // 2048 frames. 16000 frames is more than enough for full cooldown from 200°.
         using var sim = new SimulationFixture(16, 16);
         sim.Simulator.EnableHeatTransfer = true;
         sim.Set(8, 8, Materials.Stone);
         sim.SetTemperature(8, 8, 200);
 
         var counts = sim.SnapshotMaterialCounts();
-        sim.StepWithInvariants(2000, counts);
+        sim.StepWithInvariants(16000, counts);
 
         byte temp = sim.GetTemperature(8, 8);
         Assert.Equal(HeatSettings.AmbientTemperature, temp);
@@ -71,14 +71,14 @@ public class HeatTransferTests
     public void ColdConductor_WarmsTowardAmbient()
     {
         // A cold stone cell should warm toward ambient.
-        // With proportional cooling below ambient, accumulator gains (20-5)*3=45/frame.
-        // After 6 frames: 45*6=270 >= 256, so 1 degree gained. Temp goes from 5 to 6.
+        // With proportional cooling below ambient, accumulator gains (20-5)*1=15/frame.
+        // After 137 frames: 15*137=2055 >= 2048, so 1 degree gained. Temp goes from 5 to 6.
         using var sim = new SimulationFixture(16, 16);
         sim.Simulator.EnableHeatTransfer = true;
         sim.Set(8, 8, Materials.Stone);
         sim.SetTemperature(8, 8, 5);
 
-        sim.Step(10);
+        sim.Step(200);
 
         byte temp = sim.GetTemperature(8, 8);
         Assert.True(temp > 5, $"Cold stone should warm from 5, got {temp}");
@@ -112,7 +112,7 @@ public class HeatTransferTests
     {
         // Two adjacent conducting cells should eventually reach same temperature
         // (which decays to ambient due to cooling).
-        // With proportional cooling, the last degree takes ~86 frames. 2000 frames is safe.
+        // With AccumulatorThreshold=2048 and CoolingFactor=1, last degree takes 2048 frames.
         using var sim = new SimulationFixture(16, 16);
         sim.Simulator.EnableHeatTransfer = true;
         sim.Set(7, 8, Materials.Stone);
@@ -121,7 +121,7 @@ public class HeatTransferTests
         sim.SetTemperature(8, 8, 20);
 
         var counts = sim.SnapshotMaterialCounts();
-        sim.StepWithInvariants(2000, counts);
+        sim.StepWithInvariants(16000, counts);
 
         byte temp1 = sim.GetTemperature(7, 8);
         byte temp2 = sim.GetTemperature(8, 8);
@@ -281,8 +281,8 @@ public class HeatTransferTests
         //   (9,8)=20 stone, (7,8)=20 air, (8,7)=20 air, (8,9)=20 air, plus self=200
         // avgTemp = (200 + 20 + 20 + 20 + 20) / 5 = 56
         // newTemp = 200 + (56 - 200) * 64 / 256 = 200 + (-144) * 64 / 256 = 200 - 36 = 164
-        // Then proportional cooling: diff = 164 - 20 = 144, accum += 144*3 = 432
-        // degrees = 432 / 256 = 1, accum = 432 - 256 = 176, newTemp = 164 - 1 = 163
+        // Then proportional cooling: diff = 164 - 20 = 144, accum += 144*1 = 144
+        // degrees = 144 / 2048 = 0, no cooling this frame. Final = 164.
         using var sim = new SimulationFixture(16, 16);
         sim.Simulator.EnableHeatTransfer = true;
         sim.Set(8, 8, Materials.Stone);
@@ -293,8 +293,8 @@ public class HeatTransferTests
         sim.Step(1);
 
         byte hotTemp = sim.GetTemperature(8, 8);
-        // Expected: 163 (see calculation above)
-        Assert.Equal(163, hotTemp);
+        // Expected: 164 (see calculation above)
+        Assert.Equal(164, hotTemp);
     }
 
     // ===== HEAT DISABLED =====
@@ -324,8 +324,8 @@ public class HeatTransferTests
         // Air at center, temp=20, with 4 stone neighbors at 255:
         //   totalTemp = 20 + 255*4 = 1040, conductingNeighbors = 5
         //   avgTemp = 208, newTemp = 20 + (208-20)*8/256 = 20 + 5 = 25
-        //   After proportional cooling: diff = 25 - 20 = 5, accum += 5*3 = 15
-        //   degrees = 15/256 = 0, no cooling this frame. Final = 25.
+        //   After proportional cooling: diff = 25 - 20 = 5, accum += 5*1 = 5
+        //   degrees = 5/2048 = 0, no cooling this frame. Final = 25.
         using var sim = new SimulationFixture(16, 16);
         sim.Simulator.EnableHeatTransfer = true;
         // 4 hot stone cells surrounding the air cell at (8,8)
@@ -407,9 +407,9 @@ public class HeatTransferTests
     public void ProportionalCooling_HotterCoolsFaster()
     {
         // A cell at 200 degrees should cool more per step than a cell at 50 degrees.
-        // With CoolingFactor=3:
-        //   At 200: accumulator += (200-20)*3 = 540, degrees = 540/256 = 2 degrees per frame
-        //   At 50:  accumulator += (50-20)*3 = 90, degrees = 90/256 = 0 degrees first frame
+        // With CoolingFactor=1, AccumulatorThreshold=2048:
+        //   At 200: accumulator += (200-20)*1 = 180/frame, needs ~11 frames per degree
+        //   At 50:  accumulator += (50-20)*1 = 30/frame, needs ~68 frames per degree
         using var sim = new SimulationFixture(16, 16);
         sim.Simulator.EnableHeatTransfer = true;
 
@@ -418,7 +418,7 @@ public class HeatTransferTests
         sim.SetTemperature(4, 8, 200);
         sim.SetTemperature(12, 8, 50);
 
-        sim.Step(5);
+        sim.Step(100);
 
         byte hotDrop = (byte)(200 - sim.GetTemperature(4, 8));
         byte coldDrop = (byte)(50 - sim.GetTemperature(12, 8));

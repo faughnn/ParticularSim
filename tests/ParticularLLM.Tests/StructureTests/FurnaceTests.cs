@@ -25,9 +25,11 @@ namespace ParticularLLM.Tests.StructureTests;
 /// 8. Conservation: Phase changes obey 1:1 material transformation.
 ///
 /// Known tradeoffs:
-/// - Equilibrium with CoolingFactor=3, FurnaceHeatOutput=1: ~105° for 1 wall, ~190° for 2 walls.
+/// - Equilibrium with CoolingFactor=1, FurnaceHeatRate=102: ~122° for 1 emission, ~224° for 2 overlapping.
+/// - Emission depth is 4 cells (uniform), so two facing blocks across an 8-cell gap overlap in the middle.
 /// - Air conducts heat (conductionRate=8), so heat spreads through air but slowly.
 /// - Furnace material conducts heat (conductionRate=64), so back side gets some heat via conduction.
+/// - AccumulatorThreshold=2048 gives slow pacing: τ≈34 sec at 60fps, ~1.7 min to 95% equilibrium.
 /// </summary>
 public class FurnaceTests
 {
@@ -264,7 +266,8 @@ public class FurnaceTests
         sim.Set(8, 4, Materials.Stone);
         byte initialTemp = sim.GetTemperature(8, 4);
 
-        sim.Step(10);
+        // With FurnaceHeatRate=102 and AccumulatorThreshold=2048, first degree after ~20 frames
+        sim.Step(30);
 
         byte newTemp = sim.GetTemperature(8, 4);
         Assert.True(newTemp > initialTemp,
@@ -319,7 +322,7 @@ public class FurnaceTests
             sim.Set(checkX, checkY, Materials.Stone);
             sim.SetTemperature(checkX, checkY, 20);
 
-            sim.Step(10);
+            sim.Step(30);
 
             byte temp = sim.GetTemperature(checkX, checkY);
             Assert.True(temp > 20,
@@ -346,7 +349,7 @@ public class FurnaceTests
         sim.Set(8, 4, Materials.Stone);
         sim.Set(15, 4, Materials.Stone);
 
-        sim.Step(100);
+        sim.Step(500);
 
         // Both stones should be heated above ambient
         byte temp1 = sim.GetTemperature(8, 4);
@@ -383,9 +386,9 @@ public class FurnaceTests
         manager2.PlaceFurnace(8, 8, FurnaceDirection.Up);       // emits to (8..15, 7)
         sim2.Set(8, 7, Materials.Stone);
 
-        // Run both to near-equilibrium (3*tau ~ 255 frames per wall; use 500 for safety)
-        sim1.Step(500);
-        sim2.Step(500);
+        // Run both to near-equilibrium (τ=2048, use 8000 for safety)
+        sim1.Step(8000);
+        sim2.Step(8000);
 
         byte singleTemp = sim1.GetTemperature(8, 7);
         byte dualTemp = sim2.GetTemperature(8, 7);
@@ -419,8 +422,8 @@ public class FurnaceTests
         // Place water at the doubly-heated cell
         sim.Set(8, 7, Materials.Water);
 
-        // Run enough frames for heating above 100°
-        sim.Step(500);
+        // Run enough frames for heating above 100° (τ=2048, need ~2τ for 2-wall to reach 100°+)
+        sim.Step(5000);
 
         // Water should have boiled. Could be steam anywhere in the world.
         int steamCount = WorldAssert.CountMaterial(sim.World, Materials.Steam);
@@ -436,34 +439,47 @@ public class FurnaceTests
     [Fact]
     public void FurnaceEnclosure_MeltsIronOre()
     {
-        // IronOre melts at 200°. Furnace emission combined with heat transfer drives the
-        // ore's temperature up. This test verifies that furnace heating causes phase changes
-        // by pre-heating the ore to its melt point. The furnace emission ensures the cell
-        // stays at or above meltTemp despite cooling, triggering the phase change.
+        // IronOre melts at 200°. A proper enclosed furnace traps heat so conduction losses
+        // are minimized. This test builds a tight enclosure: furnace blocks on three sides
+        // with emission edges overlapping on the interior cells.
         //
-        // Setup: place ore at furnace emission edge, pre-heat to meltTemp.
-        // The first cell simulation step checks temp >= 200 and converts to MoltenIron.
+        // Layout (32x32 world):
+        //   Block (0,0) facing Right  → emits to x=8..11, y=0..7
+        //   Block (8,8) facing Up     → emits to x=8..15, y=4..7
+        //   Block (16,0) facing Left  → emits to x=12..15, y=0..7
+        //   Stone floor at y=8 (below emission zone)
+        //
+        // The interior at (8..11, 4..7) gets emission from block (0,0).
+        // The row y=4..7, x=8..11 also gets emission from block (8,8).
+        // Cells at x=12..15, y=4..7 get emission from both block (8,8) and block (16,0).
+        // The enclosure traps heat — neighbors are also hot, reducing conduction drain.
         using var sim = new SimulationFixture(32, 32);
         sim.Simulator.EnableHeatTransfer = true;
         var manager = new FurnaceBlockManager(sim.World);
         sim.Simulator.SetFurnaceManager(manager);
 
-        // Block at (0,0) facing Right — emits to (8, 0..7)
-        manager.PlaceFurnace(0, 0, FurnaceDirection.Right);
+        // Three furnace blocks forming a U-shape
+        manager.PlaceFurnace(0, 0, FurnaceDirection.Right);   // left wall, emits right
+        manager.PlaceFurnace(16, 0, FurnaceDirection.Left);    // right wall, emits left
+        manager.PlaceFurnace(8, 8, FurnaceDirection.Up);       // floor, emits up
 
-        // Place IronOre at the emission edge, pre-heated to meltTemp
-        sim.Set(8, 4, Materials.IronOre);
-        sim.SetTemperature(8, 4, 200);
+        // Stone ceiling to seal the top
+        for (int x = 8; x < 16; x++)
+            sim.Set(x, 0, Materials.Stone);
 
-        // Run a single frame — cell simulation checks phase first
-        sim.Step(1);
+        // Place IronOre in the interior overlap zone
+        sim.Set(12, 5, Materials.IronOre);
+
+        // Run to near-equilibrium (τ=2048, need several time constants)
+        sim.Step(12000);
 
         int moltenCount = WorldAssert.CountMaterial(sim.World, Materials.MoltenIron);
         int ironCount = WorldAssert.CountMaterial(sim.World, Materials.Iron);
+        int oreCount = WorldAssert.CountMaterial(sim.World, Materials.IronOre);
+
         Assert.True(moltenCount > 0 || ironCount > 0,
-            $"IronOre pre-heated to meltTemp should melt with furnace. " +
-            $"MoltenIron={moltenCount}, Iron={ironCount}, " +
-            $"IronOre={WorldAssert.CountMaterial(sim.World, Materials.IronOre)}");
+            $"IronOre in 3-wall enclosure should melt (need 200°). " +
+            $"MoltenIron={moltenCount}, Iron={ironCount}, IronOre={oreCount}");
     }
 
     // ===== CONSERVATION =====
@@ -487,7 +503,7 @@ public class FurnaceTests
         sim.Set(9, 7, Materials.Stone);
         int placed = 1;
 
-        sim.Step(800);
+        sim.Step(10000);
 
         int oreCount = WorldAssert.CountMaterial(sim.World, Materials.IronOre);
         int moltenCount = WorldAssert.CountMaterial(sim.World, Materials.MoltenIron);
@@ -565,7 +581,7 @@ public class FurnaceTests
         sim.Set(8, 4, Materials.Stone);
         sim.Set(8, 28, Materials.Stone);
 
-        sim.Step(50);
+        sim.Step(200);
 
         byte temp1 = sim.GetTemperature(8, 4);
         byte temp2 = sim.GetTemperature(8, 28);
@@ -597,11 +613,11 @@ public class FurnaceTests
         // Remove block 1
         manager.RemoveFurnace(0, 0);
 
-        sim.Step(50);
+        sim.Step(200);
 
         // Block 2 should still heat its emitting edge
         byte temp = sim.GetTemperature(8, 20);
-        Assert.True(temp > 30,
+        Assert.True(temp > 25,
             $"Remaining block should still heat, got {temp}");
     }
 
@@ -622,7 +638,7 @@ public class FurnaceTests
         for (int y = 0; y < 8; y++)
             sim.Set(8, y, Materials.Stone);
 
-        sim.Step(10);
+        sim.Step(30);
 
         // All 8 should be heated
         for (int y = 0; y < 8; y++)
@@ -707,17 +723,17 @@ public class FurnaceTests
         // Place stone at the emission edge
         sim.Set(8, 4, Materials.Stone);
 
-        // Run to near-equilibrium (several time constants)
-        sim.Step(500);
+        // Run to near-equilibrium (several time constants; τ=2048 frames)
+        sim.Step(8000);
         byte temp1 = sim.GetTemperature(8, 4);
 
         // Run additional frames to verify stability
-        sim.Step(200);
+        sim.Step(2000);
         byte temp2 = sim.GetTemperature(8, 4);
 
         // Temperature should have stabilized (within 3 degrees)
         Assert.True(Math.Abs(temp2 - temp1) <= 3,
-            $"Temperature should stabilize. After 500 frames: {temp1}, after 700 frames: {temp2}");
+            $"Temperature should stabilize. After 8000 frames: {temp1}, after 10000 frames: {temp2}");
 
         // Should be well above ambient
         Assert.True(temp2 > 60,

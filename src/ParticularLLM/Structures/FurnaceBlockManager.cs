@@ -7,7 +7,7 @@ namespace ParticularLLM;
 /// Manages furnace blocks in the world.
 /// Handles 8x8 block placement/removal with ghost support for placing through terrain.
 /// Each block has a direction indicating where it emits heat.
-/// Heat emission is implemented in SimulateFurnaces (Task 5).
+/// Heat emission is implemented in SimulateFurnaces.
 /// </summary>
 public class FurnaceBlockManager : IStructureManager
 {
@@ -23,6 +23,9 @@ public class FurnaceBlockManager : IStructureManager
 
     // ALL placed block origins (gridY * width + gridX) — needed for heat emission
     private HashSet<int> blockOrigins;
+
+    // Sub-integer heating accumulator (one per cell, mirrors cooling accumulator pattern)
+    private ushort[] heatingAccum;
 
     // Block dimensions (same as walls/lifts/belts)
     public const int BlockSize = 8;
@@ -44,6 +47,7 @@ public class FurnaceBlockManager : IStructureManager
         furnaceTiles = new FurnaceBlockTile[width * height];
         ghostBlockOrigins = new HashSet<int>();
         blockOrigins = new HashSet<int>();
+        heatingAccum = new ushort[width * height];
     }
 
     /// <summary>
@@ -273,13 +277,15 @@ public class FurnaceBlockManager : IStructureManager
 
     /// <summary>
     /// Simulates furnace heat emission. Each non-ghost furnace block emits heat
-    /// to the 8 cells on its facing edge, just outside the block boundary.
-    /// Emission is paced by FurnaceHeatInterval (frame-skip).
+    /// to cells in its facing direction, up to FurnaceEmissionDepth cells deep.
+    /// Uses a sub-integer accumulator: each frame adds FurnaceHeatRate per emission source,
+    /// and when the accumulator reaches AccumulatorThreshold, temperature rises 1 degree.
     /// </summary>
-    public void SimulateFurnaces(CellWorld world, int currentFrame)
+    public void SimulateFurnaces(CellWorld world)
     {
         if (blockOrigins.Count == 0) return;
-        if (currentFrame % HeatSettings.FurnaceHeatInterval != 0) return;
+
+        int depth = HeatSettings.FurnaceEmissionDepth;
 
         foreach (int blockKey in blockOrigins)
         {
@@ -291,34 +297,44 @@ public class FurnaceBlockManager : IStructureManager
 
             FurnaceDirection dir = furnaceTiles[blockKey].direction;
 
-            // Emit heat to 8 cells on the facing edge, just outside the block
+            // Emit heat to BlockSize cells across × depth cells deep
             for (int i = 0; i < BlockSize; i++)
             {
-                int cx, cy;
-                switch (dir)
+                for (int d = 0; d < depth; d++)
                 {
-                    case FurnaceDirection.Right:
-                        cx = gridX + BlockSize; cy = gridY + i; break;
-                    case FurnaceDirection.Left:
-                        cx = gridX - 1; cy = gridY + i; break;
-                    case FurnaceDirection.Down:
-                        cx = gridX + i; cy = gridY + BlockSize; break;
-                    case FurnaceDirection.Up:
-                        cx = gridX + i; cy = gridY - 1; break;
-                    default: continue;
+                    int cx, cy;
+                    switch (dir)
+                    {
+                        case FurnaceDirection.Right:
+                            cx = gridX + BlockSize + d; cy = gridY + i; break;
+                        case FurnaceDirection.Left:
+                            cx = gridX - 1 - d; cy = gridY + i; break;
+                        case FurnaceDirection.Down:
+                            cx = gridX + i; cy = gridY + BlockSize + d; break;
+                        case FurnaceDirection.Up:
+                            cx = gridX + i; cy = gridY - 1 - d; break;
+                        default: continue;
+                    }
+
+                    if (cx < 0 || cx >= width || cy < 0 || cy >= height) continue;
+
+                    int idx = cy * width + cx;
+                    Cell cell = world.cells[idx];
+
+                    // Don't heat other furnace cells
+                    if (cell.materialId == Materials.Furnace) continue;
+
+                    // Accumulator-based sub-integer heating
+                    heatingAccum[idx] += (ushort)HeatSettings.FurnaceHeatRate;
+                    if (heatingAccum[idx] >= HeatSettings.AccumulatorThreshold)
+                    {
+                        int degrees = heatingAccum[idx] / HeatSettings.AccumulatorThreshold;
+                        heatingAccum[idx] -= (ushort)(degrees * HeatSettings.AccumulatorThreshold);
+                        int newTemp = Math.Min(cell.temperature + degrees, 255);
+                        cell.temperature = (byte)newTemp;
+                        world.cells[idx] = cell;
+                    }
                 }
-
-                if (cx < 0 || cx >= width || cy < 0 || cy >= height) continue;
-
-                int idx = cy * width + cx;
-                Cell cell = world.cells[idx];
-
-                // Don't heat other furnace cells
-                if (cell.materialId == Materials.Furnace) continue;
-
-                int newTemp = Math.Min(cell.temperature + HeatSettings.FurnaceHeatOutput, 255);
-                cell.temperature = (byte)newTemp;
-                world.cells[idx] = cell;
             }
         }
     }

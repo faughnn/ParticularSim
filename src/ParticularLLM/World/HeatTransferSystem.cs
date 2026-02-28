@@ -75,10 +75,10 @@ public class HeatTransferSystem
                 {
                     int diff = newTemp - HeatSettings.AmbientTemperature;
                     coolingAccum[idx] += (ushort)(diff * HeatSettings.CoolingFactor);
-                    int degrees = coolingAccum[idx] / 256;
+                    int degrees = coolingAccum[idx] / HeatSettings.AccumulatorThreshold;
                     if (degrees > 0)
                     {
-                        coolingAccum[idx] -= (ushort)(degrees * 256);
+                        coolingAccum[idx] -= (ushort)(degrees * HeatSettings.AccumulatorThreshold);
                         newTemp = Math.Max(HeatSettings.AmbientTemperature, newTemp - degrees);
                     }
                 }
@@ -86,10 +86,10 @@ public class HeatTransferSystem
                 {
                     int diff = HeatSettings.AmbientTemperature - newTemp;
                     coolingAccum[idx] += (ushort)(diff * HeatSettings.CoolingFactor);
-                    int degrees = coolingAccum[idx] / 256;
+                    int degrees = coolingAccum[idx] / HeatSettings.AccumulatorThreshold;
                     if (degrees > 0)
                     {
-                        coolingAccum[idx] -= (ushort)(degrees * 256);
+                        coolingAccum[idx] -= (ushort)(degrees * HeatSettings.AccumulatorThreshold);
                         newTemp = Math.Min(HeatSettings.AmbientTemperature, newTemp + degrees);
                     }
                 }
