@@ -272,10 +272,55 @@ public class FurnaceBlockManager : IStructureManager
     }
 
     /// <summary>
-    /// Simulates furnace heat emission. Stub for now — implemented in Task 5.
+    /// Simulates furnace heat emission. Each non-ghost furnace block emits heat
+    /// to the 8 cells on its facing edge, just outside the block boundary.
+    /// Emission is paced by FurnaceHeatInterval (frame-skip).
     /// </summary>
     public void SimulateFurnaces(CellWorld world, int currentFrame)
     {
+        if (blockOrigins.Count == 0) return;
+        if (currentFrame % HeatSettings.FurnaceHeatInterval != 0) return;
+
+        foreach (int blockKey in blockOrigins)
+        {
+            int gridX = blockKey % width;
+            int gridY = blockKey / width;
+
+            // Skip ghost blocks — they aren't materialized yet
+            if (furnaceTiles[blockKey].isGhost) continue;
+
+            FurnaceDirection dir = furnaceTiles[blockKey].direction;
+
+            // Emit heat to 8 cells on the facing edge, just outside the block
+            for (int i = 0; i < BlockSize; i++)
+            {
+                int cx, cy;
+                switch (dir)
+                {
+                    case FurnaceDirection.Right:
+                        cx = gridX + BlockSize; cy = gridY + i; break;
+                    case FurnaceDirection.Left:
+                        cx = gridX - 1; cy = gridY + i; break;
+                    case FurnaceDirection.Down:
+                        cx = gridX + i; cy = gridY + BlockSize; break;
+                    case FurnaceDirection.Up:
+                        cx = gridX + i; cy = gridY - 1; break;
+                    default: continue;
+                }
+
+                if (cx < 0 || cx >= width || cy < 0 || cy >= height) continue;
+
+                int idx = cy * width + cx;
+                Cell cell = world.cells[idx];
+
+                // Don't heat other furnace cells
+                if (cell.materialId == Materials.Furnace) continue;
+
+                int newTemp = Math.Min(cell.temperature + HeatSettings.FurnaceHeatOutput, 255);
+                cell.temperature = (byte)newTemp;
+                world.cells[idx] = cell;
+            }
+        }
     }
 
     private void MarkChunksHasStructure(int cellX, int cellY, int areaWidth, int areaHeight)
