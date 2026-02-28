@@ -41,4 +41,5 @@ public struct MaterialDef
     public byte spread;          // Liquid spread distance per frame. Higher = faster horizontal movement.
     public byte emission;
     public byte restitution;     // Energy retained on collision (0-255). 0=dead stop, 255=full bounce.
+    public byte conductionRate;  // Heat conduction speed (0-255). Used as conductionRate/256 blend factor.
 }
