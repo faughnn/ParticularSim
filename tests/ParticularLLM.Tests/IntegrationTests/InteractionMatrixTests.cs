@@ -576,8 +576,11 @@ public class InteractionMatrixTests
         using var sim = new SimulationFixture(64, 64);
         sim.Simulator.EnableHeatTransfer = true;
 
+        // Set water well above boiling point so the resulting steam stays above
+        // freezeTemp (50°) long enough to verify upward movement. With proportional
+        // cooling, steam starting at 100° would re-freeze within ~15 frames.
         sim.Set(32, 32, Materials.Water);
-        sim.SetTemperature(32, 32, 100);
+        sim.SetTemperature(32, 32, 200);
 
         sim.Step(1);
 
@@ -589,8 +592,9 @@ public class InteractionMatrixTests
         Assert.True(cell.velocityY <= 0,
             $"Boiled steam should have upward (negative) velocity, got vy={cell.velocityY}");
 
-        // Run more frames — steam should rise
-        sim.Step(30);
+        // Run more frames — steam should rise. Use fewer frames since proportional
+        // cooling will eventually drop temperature below freezeTemp.
+        sim.Step(15);
         steamPositions = sim.FindMaterial(Materials.Steam);
         Assert.NotEmpty(steamPositions);
         Assert.True(steamPositions[0].y < 32,
