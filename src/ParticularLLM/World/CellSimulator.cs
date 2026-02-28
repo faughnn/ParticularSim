@@ -15,7 +15,7 @@ public class CellSimulator
     private BeltManager? _beltManager;
     private LiftManager? _liftManager;
     private WallManager? _wallManager;
-    private FurnaceManager? _furnaceManager;
+    private FurnaceBlockManager? _furnaceManager;
     private ClusterManager? _clusterManager;
     private PistonManager? _pistonManager;
     private readonly HeatTransferSystem _heatTransfer = new();
@@ -33,7 +33,7 @@ public class CellSimulator
     public void SetBeltManager(BeltManager manager) => _beltManager = manager;
     public void SetLiftManager(LiftManager manager) => _liftManager = manager;
     public void SetWallManager(WallManager manager) => _wallManager = manager;
-    public void SetFurnaceManager(FurnaceManager manager) => _furnaceManager = manager;
+    public void SetFurnaceManager(FurnaceBlockManager manager) => _furnaceManager = manager;
     public void SetClusterManager(ClusterManager manager) => _clusterManager = manager;
     public void SetPistonManager(PistonManager manager) => _pistonManager = manager;
 
@@ -113,7 +113,7 @@ public class CellSimulator
 
         // Furnace heat application (before heat diffusion so furnace heat participates in conduction)
         if (_furnaceManager != null)
-            _furnaceManager.SimulateFurnaces(world);
+            _furnaceManager.SimulateFurnaces(world, world.currentFrame);
 
         // Heat diffusion (after all movement, before next frame's simulation)
         if (EnableHeatTransfer)
