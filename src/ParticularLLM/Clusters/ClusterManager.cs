@@ -170,6 +170,7 @@ public class ClusterManager
     private void SyncClusterToWorld(ClusterData cluster, CellWorld world)
     {
         ushort clusterId = cluster.Id;
+        int displacedCount = 0;
 
         cluster.ForEachWorldCell(world.width, world.height, (cx, cy, pixelMat) =>
         {
@@ -186,6 +187,16 @@ public class ClusterManager
             // Displace existing non-air, non-owned cells
             if (existing.materialId != Materials.Air && existing.ownerId == 0)
             {
+                var matDef = world.materials[existing.materialId];
+                if (matDef.behaviour != BehaviourType.Static)
+                {
+                    // Displacement drag: each displaced cell slows the cluster
+                    float dragImpulse = (float)matDef.density / (256f * cluster.Mass);
+                    cluster.VelocityX *= (1f - dragImpulse);
+                    cluster.VelocityY *= (1f - dragImpulse);
+                    displacedCount++;
+                }
+
                 DisplaceCell(world, cx, cy, existing, cluster);
             }
 
@@ -202,6 +213,37 @@ public class ClusterManager
             world.cells[index] = newCell;
             world.MarkDirty(cx, cy);
         });
+
+        // When no cells were displaced this frame, check if the cluster is still
+        // embedded in material by scanning cells adjacent to its footprint.
+        // This prevents the counter from dropping to 0 while the cluster sits in sand.
+        if (displacedCount > 0)
+        {
+            cluster.DisplacedCellsLastSync = displacedCount;
+        }
+        else
+        {
+            int touchingCount = 0;
+            cluster.ForEachWorldCell(world.width, world.height, (cx, cy, pixelMat) =>
+            {
+                // Check the 4 neighbors for non-air, non-cluster material
+                ReadOnlySpan<int> dx = stackalloc int[] { 0, 0, -1, 1 };
+                ReadOnlySpan<int> dy = stackalloc int[] { -1, 1, 0, 0 };
+                for (int i = 0; i < 4; i++)
+                {
+                    int nx = cx + dx[i], ny = cy + dy[i];
+                    if (!world.IsInBounds(nx, ny)) continue;
+                    var nc = world.cells[ny * world.width + nx];
+                    if (nc.materialId != Materials.Air && nc.ownerId == 0 &&
+                        world.materials[nc.materialId].behaviour != BehaviourType.Static)
+                    {
+                        touchingCount++;
+                        break; // One neighbor is enough for this pixel
+                    }
+                }
+            });
+            cluster.DisplacedCellsLastSync = touchingCount > 0 ? touchingCount : 0;
+        }
     }
 
     /// <summary>

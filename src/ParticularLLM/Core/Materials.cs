@@ -91,6 +91,7 @@ public static class Materials
             density = 128, stability = 0, restitution = 77,
             behaviour = BehaviourType.Powder, flags = MaterialFlags.None,
             baseColour = new Color32(194, 178, 128, 255), colourVariation = 15,
+            airDrag = 25,
         };
         defs[Water] = new MaterialDef
         {
@@ -124,6 +125,7 @@ public static class Materials
             meltTemp = 200, materialOnMelt = MoltenIron,
             baseColour = new Color32(120, 80, 60, 255), colourVariation = 10,
             conductionRate = 48,
+            airDrag = 12,
         };
         defs[MoltenIron] = new MaterialDef
         {
@@ -150,12 +152,14 @@ public static class Materials
             ignitionTemp = 180, materialOnBurn = Ash,
             baseColour = new Color32(30, 30, 30, 255), colourVariation = 5,
             conductionRate = 32,
+            airDrag = 20,
         };
         defs[Ash] = new MaterialDef
         {
             density = 15, stability = 0, restitution = 26,
             behaviour = BehaviourType.Powder, flags = MaterialFlags.None,
             baseColour = new Color32(160, 160, 155, 255), colourVariation = 8,
+            airDrag = 50,
         };
         defs[Smoke] = new MaterialDef
         {
@@ -198,6 +202,7 @@ public static class Materials
             density = 140, stability = 50, restitution = 51,
             behaviour = BehaviourType.Powder, flags = MaterialFlags.None,
             baseColour = new Color32(139, 90, 43, 255), colourVariation = 12,
+            airDrag = 18,
         };
         defs[Ground] = new MaterialDef
         {

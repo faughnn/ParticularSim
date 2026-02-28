@@ -288,6 +288,16 @@ public class SimulateChunksLogic
         if (inLift)
             ApplyLiftExitForce(ref cell, x, y);
 
+        // Air drag: probabilistic per-frame horizontal velocity decay.
+        // Each frame, airDrag/256 chance of losing 1 unit of velocityX.
+        // Subtractive (linear) avoids integer-truncation issues with small velocities.
+        if (cell.velocityX != 0 && mat.airDrag > 0)
+        {
+            uint dragHash = HashPosition(x, y, currentFrame);
+            if ((dragHash & 255) < mat.airDrag)
+                cell.velocityX = (sbyte)(cell.velocityX - Math.Sign(cell.velocityX));
+        }
+
         // Compute effective velocity for Bresenham trace
         int vx = cell.velocityX;
         int vy = cell.velocityY;
@@ -331,6 +341,7 @@ public class SimulateChunksLogic
                     }
                 }
             }
+            ApplyLiquidDrag(ref cell, fx, fy);
             MoveCell(x, y, fx, fy, cell);
             return;
         }
@@ -339,6 +350,21 @@ public class SimulateChunksLogic
         if (collided)
             HandlePowderCollision(ref cell, vx, vy, vertColl, mat.restitution, x, y);
         TryPowderSlide(x, y, ref cell, mat);
+    }
+
+    private void ApplyLiquidDrag(ref Cell cell, int atX, int atY)
+    {
+        int idx = atY * width + atX;
+        byte targetMat = cells[idx].materialId;
+        if (targetMat == Materials.Air) return;
+
+        var def = materials[targetMat];
+        if (def.behaviour != BehaviourType.Liquid) return;
+
+        // Drag proportional to liquid density (proxy for viscosity)
+        int factor = 256 - def.density;
+        cell.velocityX = (sbyte)(cell.velocityX * factor / 256);
+        cell.velocityY = (sbyte)(cell.velocityY * factor / 256);
     }
 
     private void HandlePowderCollision(ref Cell cell, int preVx, int preVy,

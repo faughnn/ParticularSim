@@ -42,4 +42,5 @@ public struct MaterialDef
     public byte emission;
     public byte restitution;     // Energy retained on collision (0-255). 0=dead stop, 255=full bounce.
     public byte conductionRate;  // Heat conduction speed (0-255). Used as conductionRate/256 blend factor.
+    public byte airDrag;         // Horizontal velocity decay per frame (0-255). 0=no drag, higher=more drag. Factor = (256 - airDrag) / 256.
 }

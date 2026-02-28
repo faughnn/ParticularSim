@@ -36,6 +36,7 @@ public class ClusterData
     public int CrushPressureFrames { get; set; }
     public int ActiveForceCount { get; set; }
     public bool IsOnGround { get; set; }
+    public int DisplacedCellsLastSync { get; set; }
 
     // Sync state (for sleep optimization: skip clear/sync if position unchanged)
     public bool IsPixelsSynced { get; set; }

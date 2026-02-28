@@ -150,3 +150,47 @@ Document these so tests don't flag expected behavior:
 - Prefer small focused worlds (64x64 or 128x128) over large ones for readability and LLM review
 - Each test should assert material conservation unless the test specifically involves material creation/destruction
 - English rules for Layer 3 tests should be written as comments in the test class or method
+
+## Visual Review (HTML Viewer)
+
+The HTML viewer renders simulation scenarios as animated pixel grids in the browser. It's the Layer 3 review tool — the human (or LLM) watches the animation and judges whether the behavior looks correct.
+
+### Viewer Architecture
+
+- `src/ParticularLLM.Viewer/` — standalone CLI app that pre-simulates scenarios and exports a self-contained HTML file
+- Scenarios defined in `Scenarios/CoreScenarios.cs`, `StructureScenarios.cs`, `InteractionScenarios.cs`
+- Each scenario has `string[] Tags` (e.g., `["powder", "liquid"]`) mapping it to the sim systems it exercises
+- `ReviewQueue.cs` tracks review state in `review-state.json` (git-tracked) and auto-re-queues scenarios when tagged source files change
+
+### CLI Commands
+
+```bash
+# Show what needs review
+dotnet run --project src/ParticularLLM.Viewer -- --status
+
+# Export queued scenarios to viewer.html (randomized order)
+dotnet run --project src/ParticularLLM.Viewer -- --html
+
+# Export ALL scenarios (ignore queue)
+dotnet run --project src/ParticularLLM.Viewer -- --html --all
+
+# List all scenarios with tags
+dotnet run --project src/ParticularLLM.Viewer -- --list
+
+# Import review results from browser export
+dotnet run --project src/ParticularLLM.Viewer -- --import review.json
+```
+
+### Review Workflow
+
+1. Run `--html` to export queued scenarios
+2. Open `viewer.html` in a browser
+3. Watch each scenario animate, use playback controls (Space, arrow keys, speed slider)
+4. Mark each as Pass/Fail with optional notes
+5. Click "Export Review" in the sidebar to download a JSON file
+6. Run `--import review.json` to record results in `review-state.json`
+7. After fixing sim code and committing, `--status` shows which scenarios were re-queued by code changes
+
+### Re-queue Logic
+
+When source files change (detected via `git diff`), any scenario tagged with an affected system is automatically re-queued. The tag-to-file mapping is in `ReviewQueue.cs`. For example, changing `SimulateChunksLogic.cs` re-queues all scenarios tagged with powder, liquid, gas, density, or heat.

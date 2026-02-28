@@ -36,6 +36,12 @@ public static class ClusterPhysics
     /// <summary>Consecutive low-speed frames before forcing sleep.</summary>
     public const int SleepFrameThreshold = 30;
 
+    /// <summary>Speed below which embedded material provides full normal force (cancels gravity).</summary>
+    public const float SoftGroundSpeedThreshold = 0.5f;
+
+    /// <summary>Continuous velocity damping factor per displaced cell (between discrete displacement events).</summary>
+    public const float ContinuousDragFactor = 0.15f;
+
     /// <summary>
     /// Step physics for a single cluster (no cluster-cluster collision).
     /// Backward-compatible overload for tests that only need static collision.
@@ -108,6 +114,30 @@ public static class ClusterPhysics
         }
 
         cluster.IsOnGround = hitGround;
+
+        // Soft ground support: displaced materials resist cluster movement
+        if (!hitGround && cluster.DisplacedCellsLastSync > 0)
+        {
+            float sgSpeed = MathF.Sqrt(cluster.VelocityX * cluster.VelocityX +
+                                        cluster.VelocityY * cluster.VelocityY);
+
+            if (cluster.VelocityY > 0 && sgSpeed < SoftGroundSpeedThreshold)
+            {
+                // Slow enough: material provides normal force (like resting on surface)
+                cluster.Y = oldY; // Undo downward drift
+                cluster.VelocityY = 0f;
+                cluster.VelocityX *= (1f - cluster.Friction);
+                cluster.IsOnGround = true;
+            }
+            else if (sgSpeed > 0.01f)
+            {
+                // Fast: continuous damping between discrete displacement events
+                float dampFactor = ContinuousDragFactor * cluster.DisplacedCellsLastSync / cluster.Mass;
+                dampFactor = MathF.Min(dampFactor, 0.5f);
+                cluster.VelocityX *= (1f - dampFactor);
+                cluster.VelocityY *= (1f - dampFactor);
+            }
+        }
 
         // Integrate rotation
         if (MathF.Abs(cluster.AngularVelocity) > 0.001f)
