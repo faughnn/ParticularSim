@@ -1,4 +1,5 @@
 using System.Text;
+using ParticularLLM.Rendering;
 
 namespace ParticularLLM.Viewer;
 
@@ -14,6 +15,7 @@ public static class HtmlExporter
         sb.Append(HtmlBody());
         sb.Append(ScriptOpen());
         sb.Append(EmbedColorTable(colorTable));
+        sb.Append(EmbedHeatTables());
         sb.Append(EmbedScenarioData(captured));
         sb.Append(EmbedReviewState(reviewState));
         sb.Append(PlayerScript());
@@ -221,6 +223,7 @@ public static class HtmlExporter
         <button onclick="stepBack()" title="Left arrow">&#9664;&#9664; [&#8592;]</button>
         <button onclick="stepForward()" title="Right arrow">&#9654;&#9654; [&#8594;]</button>
         <button onclick="restart()" title="R">&#8634; [R]</button>
+        <button id="btn-heat" onclick="heatMode=!heatMode;document.getElementById('btn-heat').className=heatMode?'active':'';renderFrame()" title="H">Heat [H]</button>
         <div class="separator"></div>
         <span id="frame-display">Frame 0 / 0</span>
         <div class="separator"></div>
@@ -284,6 +287,57 @@ public static class HtmlExporter
         return sb.ToString();
     }
 
+    private static string EmbedHeatTables()
+    {
+        var sb = new StringBuilder();
+
+        // HEAT_AIR — 256-entry [r,g,b,a] table for air glow overlay
+        var airTable = HeatColorMap.GenerateAirColorTable();
+        sb.Append("const HEAT_AIR = [");
+        for (int i = 0; i < airTable.Length; i++)
+        {
+            var c = airTable[i];
+            sb.Append($"[{c[0]},{c[1]},{c[2]},{c[3]}]");
+            if (i < airTable.Length - 1) sb.Append(',');
+        }
+        sb.AppendLine("];");
+
+        // HEAT_MAP — 256-entry [r,g,b,a] table for heatmap toggle mode
+        var heatmapTable = HeatColorMap.GenerateHeatmapColorTable();
+        sb.Append("const HEAT_MAP = [");
+        for (int i = 0; i < heatmapTable.Length; i++)
+        {
+            var c = heatmapTable[i];
+            sb.Append($"[{c[0]},{c[1]},{c[2]},{c[3]}]");
+            if (i < heatmapTable.Length - 1) sb.Append(',');
+        }
+        sb.AppendLine("];");
+
+        // FURNACE_GRAD — object with 4 direction keys (0=Up,1=Right,2=Down,3=Left),
+        // each value is array of 8 [r,g,b] entries
+        sb.Append("const FURNACE_GRAD = {");
+        for (int dir = 0; dir < 4; dir++)
+        {
+            var grad = HeatColorMap.GenerateFurnaceGradient((FurnaceDirection)dir);
+            sb.Append($"{dir}:[");
+            for (int j = 0; j < grad.Length; j++)
+            {
+                var c = grad[j];
+                sb.Append($"[{c[0]},{c[1]},{c[2]}]");
+                if (j < grad.Length - 1) sb.Append(',');
+            }
+            sb.Append(']');
+            if (dir < 3) sb.Append(',');
+        }
+        sb.AppendLine("};");
+
+        // Material constants for JS
+        sb.AppendLine($"const MAT_FURNACE = {Materials.Furnace};");
+        sb.AppendLine($"const MAT_AIR = {Materials.Air};");
+
+        return sb.ToString();
+    }
+
     private static string EmbedScenarioData(List<ScenarioData> scenarios)
     {
         var sb = new StringBuilder();
@@ -296,9 +350,22 @@ public static class HtmlExporter
             sb.Append($"category:\"{EscapeJs(s.Category)}\",");
             sb.Append($"desc:\"{EscapeJs(s.Description)}\",");
             sb.Append($"w:{s.Width},h:{s.Height},frames:{s.FrameCount},");
+            sb.Append($"hasTemp:{(s.HasTemperature ? "true" : "false")},");
             sb.Append($"data:\"");
             sb.Append(s.CompressedBase64);
-            sb.Append("\"}");
+            sb.Append("\"");
+            if (s.FurnaceBlocks != null && s.FurnaceBlocks.Length > 0)
+            {
+                sb.Append(",furnaces:[");
+                for (int f = 0; f < s.FurnaceBlocks.Length; f++)
+                {
+                    var fb = s.FurnaceBlocks[f];
+                    sb.Append($"[{fb.GridX},{fb.GridY},{fb.Direction}]");
+                    if (f < s.FurnaceBlocks.Length - 1) sb.Append(',');
+                }
+                sb.Append(']');
+            }
+            sb.Append('}');
             if (i < scenarios.Count - 1) sb.Append(',');
             sb.AppendLine();
         }
@@ -334,6 +401,9 @@ public static class HtmlExporter
     const FPS_STEPS = [1, 2, 5, 10, 15, 20, 30, 60];
     let fpsIndex = 3;
     let pixelSize = 8;
+    let bytesPerCell = 1; // 1 for v1, 2 for v2
+    let heatMode = false; // Toggle with H key
+    let furnaceLookup = null; // Map<cellIndex, [r,g,b]> for furnace gradient colors
 
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
@@ -497,6 +567,29 @@ public static class HtmlExporter
       frameData = await decompress(s.data);
       document.getElementById('scenario-title').textContent = s.name;
 
+      bytesPerCell = s.hasTemp ? 2 : 1;
+
+      furnaceLookup = new Map();
+      if (s.furnaces && typeof FURNACE_GRAD !== 'undefined') {
+        for (const [gx, gy, dir] of s.furnaces) {
+          const grad = FURNACE_GRAD[dir];
+          for (let ly = 0; ly < 8; ly++) {
+            for (let lx = 0; lx < 8; lx++) {
+              const cx = gx + lx;
+              const cy = gy + ly;
+              if (cx < 0 || cx >= s.w || cy < 0 || cy >= s.h) continue;
+              const idx = cy * s.w + cx;
+              let pos;
+              if (dir === 1) pos = lx;
+              else if (dir === 3) pos = 7 - lx;
+              else if (dir === 2) pos = ly;
+              else pos = 7 - ly;
+              furnaceLookup.set(idx, grad[pos]);
+            }
+          }
+        }
+      }
+
       currentFrame = 0;
       playing = settings.autoplay;
       lastFrameTime = performance.now();
@@ -510,19 +603,49 @@ public static class HtmlExporter
     function renderFrame() {
       const s = SCENARIOS[currentIdx];
       const cellCount = s.w * s.h;
-      const offset = currentFrame * cellCount;
+      const frameOffset = currentFrame * cellCount * bytesPerCell;
       const pixels = imageData.data;
 
-      // Count materials for legend
       const counts = new Map();
       for (let i = 0; i < cellCount; i++) {
-        const matId = frameData[offset + i];
+        const matId = frameData[frameOffset + i * bytesPerCell];
+        const temp = bytesPerCell >= 2 ? frameData[frameOffset + i * bytesPerCell + 1] : 20;
         const ci = matId < COLORS.length ? matId : 0;
         const pi = i * 4;
-        pixels[pi]     = COLORS[ci][0];
-        pixels[pi + 1] = COLORS[ci][1];
-        pixels[pi + 2] = COLORS[ci][2];
-        pixels[pi + 3] = 255;
+
+        if (heatMode && typeof HEAT_MAP !== 'undefined') {
+          const hc = HEAT_MAP[temp];
+          pixels[pi]     = hc[0];
+          pixels[pi + 1] = hc[1];
+          pixels[pi + 2] = hc[2];
+          pixels[pi + 3] = 255;
+        } else if (matId === MAT_FURNACE && furnaceLookup && furnaceLookup.has(i)) {
+          const fc = furnaceLookup.get(i);
+          pixels[pi]     = fc[0];
+          pixels[pi + 1] = fc[1];
+          pixels[pi + 2] = fc[2];
+          pixels[pi + 3] = 255;
+        } else if (matId === MAT_AIR && typeof HEAT_AIR !== 'undefined') {
+          const hc = HEAT_AIR[temp];
+          if (hc[3] > 0) {
+            const a = hc[3] / 255;
+            pixels[pi]     = Math.round(COLORS[0][0] * (1 - a) + hc[0] * a);
+            pixels[pi + 1] = Math.round(COLORS[0][1] * (1 - a) + hc[1] * a);
+            pixels[pi + 2] = Math.round(COLORS[0][2] * (1 - a) + hc[2] * a);
+            pixels[pi + 3] = 255;
+          } else {
+            pixels[pi]     = COLORS[0][0];
+            pixels[pi + 1] = COLORS[0][1];
+            pixels[pi + 2] = COLORS[0][2];
+            pixels[pi + 3] = 255;
+          }
+        } else {
+          pixels[pi]     = COLORS[ci][0];
+          pixels[pi + 1] = COLORS[ci][1];
+          pixels[pi + 2] = COLORS[ci][2];
+          pixels[pi + 3] = 255;
+        }
+
         if (matId !== 0) counts.set(matId, (counts.get(matId) || 0) + 1);
       }
 
@@ -546,6 +669,11 @@ public static class HtmlExporter
         legendHtml += `<span class="legend-item"><span class="legend-swatch" style="background:rgb(${COLORS[ci]})"></span>${name} <span class="legend-count">x${count}</span></span>`;
       }
       legend.innerHTML = legendHtml;
+
+      // Heat mode indicator in title
+      const title = document.getElementById('scenario-title');
+      const baseName = SCENARIOS[currentIdx].name;
+      title.textContent = heatMode ? baseName + ' [HEAT]' : baseName;
     }
 
     // --- Playback ---
@@ -724,6 +852,11 @@ public static class HtmlExporter
           updateSpeed();
           break;
         case 'r': case 'R': restart(); break;
+        case 'h': case 'H':
+          heatMode = !heatMode;
+          document.getElementById('btn-heat').className = heatMode ? 'active' : '';
+          renderFrame();
+          break;
         case 'l': case 'L': toggleSetting('loop'); break;
         case '1': setReview('pass'); break;
         case '2': setReview('fail'); break;
