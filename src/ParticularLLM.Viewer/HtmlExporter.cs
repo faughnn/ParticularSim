@@ -1,36 +1,21 @@
-using System.IO.Compression;
 using System.Text;
-using ParticularLLM.Viewer.Scenarios;
 
 namespace ParticularLLM.Viewer;
 
 public static class HtmlExporter
 {
-    public static void Export(List<ScenarioDef> scenarios, string outputPath)
+    public static void Export(List<ScenarioData> captured, string outputPath, ReviewState reviewState)
     {
         var sb = new StringBuilder();
-
-        // Pre-simulate all scenarios and collect data
-        var scenarioDataList = new List<ScenarioData>();
-        for (int i = 0; i < scenarios.Count; i++)
-        {
-            var def = scenarios[i];
-            Console.Write($"  Simulating [{i + 1}/{scenarios.Count}] {def.Name}...");
-            var data = PreSimulate(def);
-            scenarioDataList.Add(data);
-            Console.WriteLine($" {data.FrameCount} frames, {data.CompressedBase64.Length / 1024}KB compressed");
-        }
-
-        // Build color table from materials
         var colorTable = BuildColorTable();
 
-        // Generate HTML
         sb.Append(HtmlHead());
         sb.Append(HtmlStyles());
         sb.Append(HtmlBody());
         sb.Append(ScriptOpen());
         sb.Append(EmbedColorTable(colorTable));
-        sb.Append(EmbedScenarioData(scenarioDataList));
+        sb.Append(EmbedScenarioData(captured));
+        sb.Append(EmbedReviewState(reviewState));
         sb.Append(PlayerScript());
         sb.Append(ScriptClose());
         sb.Append(HtmlFooter());
@@ -38,45 +23,14 @@ public static class HtmlExporter
         File.WriteAllText(outputPath, sb.ToString());
     }
 
-    private static ScenarioData PreSimulate(ScenarioDef def)
-    {
-        using var fixture = new ViewerFixture(def.Width, def.Height);
-        def.Setup(fixture);
+    public record FurnaceBlockInfo(int GridX, int GridY, byte Direction);
 
-        int cellCount = def.Width * def.Height;
-        int totalFrames = def.SuggestedFrames + 1; // +1 for initial state
-        var frames = new byte[totalFrames * cellCount];
-
-        // Capture frame 0 (initial state)
-        for (int j = 0; j < cellCount; j++)
-            frames[j] = fixture.World.cells[j].materialId;
-
-        // Simulate and capture each frame
-        for (int f = 1; f < totalFrames; f++)
-        {
-            fixture.Step();
-            int offset = f * cellCount;
-            for (int j = 0; j < cellCount; j++)
-                frames[offset + j] = fixture.World.cells[j].materialId;
-        }
-
-        // GZip compress
-        using var ms = new MemoryStream();
-        using (var gz = new GZipStream(ms, CompressionLevel.Optimal, leaveOpen: true))
-        {
-            gz.Write(frames, 0, frames.Length);
-        }
-        string compressed = Convert.ToBase64String(ms.ToArray());
-
-        return new ScenarioData(
-            def.Name, def.Category, def.Description,
-            def.Width, def.Height, totalFrames, compressed
-        );
-    }
-
-    private record ScenarioData(
+    public record ScenarioData(
         string Name, string Category, string Description,
-        int Width, int Height, int FrameCount, string CompressedBase64
+        int Width, int Height, int FrameCount, string CompressedBase64,
+        string[] Tags,
+        bool HasTemperature = false,
+        FurnaceBlockInfo[]? FurnaceBlocks = null
     );
 
     private static List<(byte r, byte g, byte b, string name)> BuildColorTable()
@@ -153,6 +107,13 @@ public static class HtmlExporter
     .dot.pass { background: #4caf50; }
     .dot.fail { background: #f44336; }
 
+    /* Filter bar */
+    #filter-bar { display: flex; gap: 4px; padding: 8px 16px; border-bottom: 1px solid #334; }
+    #filter-bar button { background: #2a3a5c; border: 1px solid #445; color: #8892b0; padding: 4px 10px; border-radius: 3px; cursor: pointer; font-size: 11px; transition: background 0.15s; }
+    #filter-bar button:hover { background: #3a4a6c; }
+    #filter-bar button.active { background: #4a5a7c; color: #fff; }
+    #btn-next-queued { margin-left: auto; }
+
     /* Progress bar */
     #progress-bar { padding: 12px 16px; border-top: 1px solid #334; font-size: 12px; color: #8892b0; }
     #progress-bar .bar { height: 4px; background: #334; border-radius: 2px; margin-top: 6px; overflow: hidden; }
@@ -207,6 +168,19 @@ public static class HtmlExporter
 
     /* Keyboard hints */
     kbd { background: #2a2a3a; border: 1px solid #445; border-radius: 3px; padding: 1px 5px; font-size: 11px; font-family: inherit; }
+
+    /* Settings panel */
+    #settings-wrap { position: relative; }
+    #settings-btn { font-size: 16px; line-height: 1; padding: 6px 10px; }
+    #settings-panel { display: none; position: absolute; bottom: 100%; right: 0; background: #1e2a4a; border: 1px solid #445; border-radius: 6px; padding: 12px 16px; min-width: 200px; box-shadow: 0 4px 16px rgba(0,0,0,.4); z-index: 10; }
+    #settings-panel.open { display: block; }
+    #settings-panel h3 { font-size: 12px; color: #8892b0; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+    .setting-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+    .setting-row label { cursor: pointer; user-select: none; }
+    .toggle { position: relative; width: 36px; height: 20px; background: #334; border-radius: 10px; cursor: pointer; transition: background 0.2s; flex-shrink: 0; }
+    .toggle.on { background: #4a7abf; }
+    .toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; background: #e0e0e0; border-radius: 50%; transition: transform 0.2s; }
+    .toggle.on::after { transform: translateX(16px); }
     </style>
     """;
 
@@ -215,6 +189,12 @@ public static class HtmlExporter
     <body>
     <div id="sidebar">
       <h2>Scenarios</h2>
+      <div id="filter-bar">
+        <button id="btn-filter-all" onclick="setFilter('all')">All</button>
+        <button id="btn-filter-unreviewed" onclick="setFilter('unreviewed')">Unreviewed</button>
+        <button id="btn-filter-fail" onclick="setFilter('fail')">Failed</button>
+        <button id="btn-next-queued" onclick="jumpNextUnreviewed()" title="Tab">Next [Tab]</button>
+      </div>
       <div id="scenario-list"></div>
       <div id="review-actions">
         <button onclick="exportReview()" title="Download review as JSON">Export Review</button>
@@ -237,26 +217,37 @@ public static class HtmlExporter
       </div>
       <div id="legend"></div>
       <div id="controls">
-        <button id="btn-play" onclick="togglePlay()" title="Space">&#9654;</button>
-        <button onclick="stepBack()" title="Left arrow">&#9664;&#9664;</button>
-        <button onclick="stepForward()" title="Right arrow / .">&#9654;&#9654;</button>
-        <button onclick="restart()" title="R">&#8634;</button>
+        <button id="btn-play" onclick="togglePlay()" title="Space">&#9654; [Space]</button>
+        <button onclick="stepBack()" title="Left arrow">&#9664;&#9664; [&#8592;]</button>
+        <button onclick="stepForward()" title="Right arrow">&#9654;&#9654; [&#8594;]</button>
+        <button onclick="restart()" title="R">&#8634; [R]</button>
         <div class="separator"></div>
         <span id="frame-display">Frame 0 / 0</span>
         <div class="separator"></div>
         <label style="font-size:12px;color:#889">Speed:</label>
         <input type="range" id="speed-slider" min="0" max="7" value="3" oninput="updateSpeed()">
         <span id="speed-display">10 fps</span>
-        <div class="separator"></div>
-        <span style="font-size:11px;color:#556">
-          <kbd>Space</kbd> play &nbsp; <kbd>.</kbd> step &nbsp; <kbd>&larr;</kbd><kbd>&rarr;</kbd> frame &nbsp; <kbd>&lt;</kbd><kbd>&gt;</kbd> speed &nbsp; <kbd>R</kbd> restart
-        </span>
+        <div style="flex:1"></div>
+        <div id="settings-wrap">
+          <button id="settings-btn" onclick="toggleSettings()" title="Settings">&#9881;</button>
+          <div id="settings-panel">
+            <h3>Settings</h3>
+            <div class="setting-row">
+              <label onclick="toggleSetting('loop')">Loop playback</label>
+              <div id="toggle-loop" class="toggle" onclick="toggleSetting('loop')"></div>
+            </div>
+            <div class="setting-row">
+              <label onclick="toggleSetting('autoplay')">Autoplay on load</label>
+              <div id="toggle-autoplay" class="toggle on" onclick="toggleSetting('autoplay')"></div>
+            </div>
+          </div>
+        </div>
       </div>
       <div id="review-bar">
         <div id="review-buttons">
-          <button id="btn-pass" onclick="setReview('pass')">&#10004; Pass</button>
-          <button id="btn-fail" onclick="setReview('fail')">&#10008; Fail</button>
-          <button id="btn-skip" onclick="setReview('unreviewed')">Skip</button>
+          <button id="btn-pass" onclick="setReview('pass')">&#10004; Pass [1]</button>
+          <button id="btn-fail" onclick="setReview('fail')">&#10008; Fail [2]</button>
+          <button id="btn-skip" onclick="setReview('unreviewed')">Skip [3]</button>
         </div>
         <div id="notes-area">
           <label>Notes (optional)</label>
@@ -315,6 +306,21 @@ public static class HtmlExporter
         return sb.ToString();
     }
 
+    private static string EmbedReviewState(ReviewState state)
+    {
+        var sb = new StringBuilder();
+        sb.Append("const EMBEDDED_REVIEW = {");
+        bool first = true;
+        foreach (var (name, review) in state.Scenarios)
+        {
+            if (!first) sb.Append(',');
+            first = false;
+            sb.Append($"\"{EscapeJs(name)}\":{{status:\"{EscapeJs(review.Status)}\",notes:\"{EscapeJs(review.Notes)}\"}}");
+        }
+        sb.AppendLine("};");
+        return sb.ToString();
+    }
+
     private static string EscapeJs(string s) =>
         s.Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n");
 
@@ -333,22 +339,91 @@ public static class HtmlExporter
     const ctx = canvas.getContext('2d');
     let imageData = null;
 
+    // --- Settings (localStorage) ---
+    const SETTINGS_KEY = 'particularllm-settings';
+    let settings = (() => {
+      try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; } catch { return {}; }
+    })();
+    if (settings.loop === undefined) settings.loop = false;
+    if (settings.autoplay === undefined) settings.autoplay = true;
+    function saveSettings() { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
+    function toggleSettings() { document.getElementById('settings-panel').classList.toggle('open'); }
+    function toggleSetting(key) {
+      settings[key] = !settings[key];
+      saveSettings();
+      updateSettingsUI();
+    }
+    function updateSettingsUI() {
+      document.getElementById('toggle-loop').className = 'toggle' + (settings.loop ? ' on' : '');
+      document.getElementById('toggle-autoplay').className = 'toggle' + (settings.autoplay ? ' on' : '');
+    }
+    // Close settings when clicking outside
+    document.addEventListener('click', (e) => {
+      const wrap = document.getElementById('settings-wrap');
+      if (!wrap.contains(e.target)) document.getElementById('settings-panel').classList.remove('open');
+    });
+
     // --- Review state (localStorage) ---
     const STORAGE_KEY = 'particularllm-review';
+    const FILTER_KEY = 'particularllm-filter';
     function loadReviewState() {
       try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
     }
     function saveReviewState(state) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
+
+    // Merge embedded review state (CLI is authoritative — embedded wins on conflict)
     let reviewState = loadReviewState();
+    if (typeof EMBEDDED_REVIEW !== 'undefined') {
+      for (const [name, data] of Object.entries(EMBEDDED_REVIEW)) {
+        reviewState[name] = { ...reviewState[name], ...data };
+      }
+      saveReviewState(reviewState);
+    }
+
+    // --- Filter state ---
+    let currentFilter = localStorage.getItem(FILTER_KEY) || 'auto';
+    function getEffectiveFilter() {
+      if (currentFilter === 'auto') {
+        const hasUnreviewed = SCENARIOS.some(s => {
+          const st = (reviewState[s.name] || {}).status;
+          return st !== 'pass' && st !== 'fail';
+        });
+        return hasUnreviewed ? 'unreviewed' : 'all';
+      }
+      return currentFilter;
+    }
+    function setFilter(f) {
+      currentFilter = f;
+      localStorage.setItem(FILTER_KEY, f);
+      buildSidebar();
+    }
+    function matchesFilter(scenarioName, filter) {
+      const st = (reviewState[scenarioName] || {}).status || 'unreviewed';
+      if (filter === 'all') return true;
+      if (filter === 'unreviewed') return st !== 'pass' && st !== 'fail';
+      if (filter === 'fail') return st === 'fail';
+      return true;
+    }
+    function isUnreviewed(scenarioName) {
+      const st = (reviewState[scenarioName] || {}).status;
+      return st !== 'pass' && st !== 'fail';
+    }
 
     // --- Build sidebar ---
     function buildSidebar() {
       const list = document.getElementById('scenario-list');
       list.innerHTML = '';
+      const filter = getEffectiveFilter();
+      // Update filter button states
+      document.getElementById('btn-filter-all').className = filter === 'all' ? 'active' : '';
+      document.getElementById('btn-filter-unreviewed').className = filter === 'unreviewed' ? 'active' : '';
+      document.getElementById('btn-filter-fail').className = filter === 'fail' ? 'active' : '';
+
       let lastCat = null;
       SCENARIOS.forEach((s, i) => {
+        if (!matchesFilter(s.name, filter)) return;
         if (s.category !== lastCat) {
           lastCat = s.category;
           const g = document.createElement('div');
@@ -423,9 +498,9 @@ public static class HtmlExporter
       document.getElementById('scenario-title').textContent = s.name;
 
       currentFrame = 0;
-      playing = true;
+      playing = settings.autoplay;
       lastFrameTime = performance.now();
-      document.getElementById('btn-play').innerHTML = '&#9646;&#9646;';
+      document.getElementById('btn-play').innerHTML = playing ? '&#9646;&#9646;' : '&#9654;';
       renderFrame();
       updateReviewUI();
       buildSidebar();
@@ -475,6 +550,16 @@ public static class HtmlExporter
 
     // --- Playback ---
     function togglePlay() {
+      // If at the end, restart and play
+      const s = SCENARIOS[currentIdx];
+      if (!playing && currentFrame >= s.frames - 1) {
+        currentFrame = 0;
+        playing = true;
+        lastFrameTime = performance.now();
+        document.getElementById('btn-play').innerHTML = '&#9646;&#9646;';
+        renderFrame();
+        return;
+      }
       playing = !playing;
       document.getElementById('btn-play').innerHTML = playing ? '&#9646;&#9646;' : '&#9654;';
       if (playing) lastFrameTime = performance.now();
@@ -491,6 +576,9 @@ public static class HtmlExporter
 
     function restart() {
       currentFrame = 0;
+      playing = true;
+      lastFrameTime = performance.now();
+      document.getElementById('btn-play').innerHTML = '&#9646;&#9646;';
       renderFrame();
     }
 
@@ -509,6 +597,9 @@ public static class HtmlExporter
           if (currentFrame < s.frames - 1) {
             currentFrame++;
             renderFrame();
+          } else if (settings.loop) {
+            currentFrame = 0;
+            renderFrame();
           } else {
             playing = false;
             document.getElementById('btn-play').innerHTML = '&#9654;';
@@ -518,6 +609,22 @@ public static class HtmlExporter
       requestAnimationFrame(animationLoop);
     }
     requestAnimationFrame(animationLoop);
+
+    // --- Navigation helpers ---
+    function findNextUnreviewed(afterIdx) {
+      for (let i = afterIdx + 1; i < SCENARIOS.length; i++) {
+        if (isUnreviewed(SCENARIOS[i].name)) return i;
+      }
+      // Wrap around
+      for (let i = 0; i <= afterIdx; i++) {
+        if (isUnreviewed(SCENARIOS[i].name)) return i;
+      }
+      return -1;
+    }
+    function jumpNextUnreviewed() {
+      const next = findNextUnreviewed(currentIdx);
+      if (next >= 0) loadScenario(next);
+    }
 
     // --- Review controls ---
     function setReview(status) {
@@ -530,9 +637,10 @@ public static class HtmlExporter
       saveReviewState(reviewState);
       updateReviewUI();
       buildSidebar();
-      // Auto-advance on pass or fail
-      if ((status === 'pass' || status === 'fail') && currentIdx < SCENARIOS.length - 1) {
-        loadScenario(currentIdx + 1);
+      // Auto-advance: skip already-reviewed scenarios
+      if (status === 'pass' || status === 'fail') {
+        const next = findNextUnreviewed(currentIdx);
+        if (next >= 0 && next !== currentIdx) loadScenario(next);
       }
     }
 
@@ -595,7 +703,11 @@ public static class HtmlExporter
 
     // --- Keyboard shortcuts ---
     document.addEventListener('keydown', (e) => {
-      if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+      if (e.target.tagName === 'TEXTAREA') {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.target.blur(); }
+        return;
+      }
+      if (e.target.tagName === 'INPUT') return;
       switch (e.key) {
         case ' ': e.preventDefault(); togglePlay(); break;
         case '.': stepForward(); break;
@@ -612,6 +724,12 @@ public static class HtmlExporter
           updateSpeed();
           break;
         case 'r': case 'R': restart(); break;
+        case 'l': case 'L': toggleSetting('loop'); break;
+        case '1': setReview('pass'); break;
+        case '2': setReview('fail'); break;
+        case '3': setReview('unreviewed'); break;
+        case 'Enter': e.preventDefault(); document.getElementById('notes-input').focus(); break;
+        case 'Tab': e.preventDefault(); jumpNextUnreviewed(); break;
         case 'n': case 'N': loadScenario((currentIdx + 1) % SCENARIOS.length); break;
         case 'p': case 'P': loadScenario((currentIdx - 1 + SCENARIOS.length) % SCENARIOS.length); break;
       }
@@ -619,6 +737,7 @@ public static class HtmlExporter
 
     // --- Init ---
     updateSpeed();
+    updateSettingsUI();
     buildSidebar();
     loadScenario(0);
     """;
