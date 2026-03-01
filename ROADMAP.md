@@ -22,24 +22,37 @@ A falling sand puzzle game where players build machines from simple structures t
 
 ### Simulation Engine
 - Cell world with 4-pass checkerboard chunk threading (Noita-style)
-- Materials: Air, Stone, Sand, Water, Dirt, Ground, Wall (powder, liquid, gas, static behaviors)
+- Materials: Air, Stone, Sand, Water, Dirt, Ground, Oil, Steam, IronOre, MoltenIron, Iron, Coal, Ash, Smoke, Wall (powder, liquid, gas, static behaviors)
+- Per-material physics attributes: density, stability, restitution, spread, airDrag, conductionRate, phase-change temperatures
+- 2D material movement via Bresenham ray-march (traces full velocity vector through grid)
 - Density displacement between materials
 - Fractional velocity accumulation (gravity = 17/256 per frame)
 - Bottom-to-top processing with alternating X direction per row
 - Dirty chunk optimization (inactive chunks skip simulation)
-- Standalone test harness at `G:\ParticularLLM` (135 tests, headless validation)
+- Standalone test harness at `G:\ParticularLLM` (516 tests, headless validation)
 
 ### Structures (8x8 grid-snapped)
 - **Belt** — horizontal material transport, cluster carrying, auto-merging, drag-to-place
 - **Lift** — upward force zones, passable (materials flow through), vertical merging
 - **Wall** — static blocker
 - **Ghost mode** — structures placed through soft terrain, auto-activate when terrain clears
-- **Piston** — 16x16 cluster pushing (early implementation)
+- **Furnace** — 8x8 block, directional heat emission (depth-4), sub-integer accumulator, ghost mode
+- **Piston** — 16x16 block, 3-second motor cycle (dwell/extend/dwell/retract), cell chain pushing, plate clusters
 
 ### Clusters
-- Rigid body simulation with compression/fracture system
-- Cluster-to-world sync, anti-sleep system
-- Piston-driven cluster pushing
+- Rigid body simulation: gravity, velocity, pixel-level collision detection
+- 3-step pipeline: CLEAR (remove old pixels) → PHYSICS (integrate velocity, detect collisions) → SYNC (write to grid)
+- Push-based displacement: cluster velocity transferred to displaced cells, scaled by density ratio
+- Crack-line fracture: seeded RNG, 1-3 crack lines, pixel partitioning, material conservation
+- Cluster-cluster collision with 1D momentum exchange
+- Sleep detection (30 low-speed frames on ground)
+- Piston-driven cluster pushing with crush pressure tracking
+
+### Heat & Processing
+- Double-buffered heat conduction between neighboring cells (per-material conductionRate)
+- Proportional cooling toward ambient (Newton's law)
+- Material reactions: melting, freezing, boiling, burning (temperature-triggered phase changes)
+- Fire spread to flammable neighbors, probabilistic fuel consumption
 
 ### Player & Game
 - Player character with movement (acceleration-based, coyote time, jump buffering)
@@ -60,6 +73,12 @@ A falling sand puzzle game where players build machines from simple structures t
   - **Level 2 "The Descent"** — belt dirt across stone barrier and down slope (unlocks lifts)
   - **Level 3 "The Ascent"** — (WIP) lift+belt dirt up through shaft to floating island
 
+### Visual Review (HTML Viewer)
+- Standalone CLI app pre-simulates scenarios, exports self-contained animated HTML
+- 30 scenarios across core physics, structures, and interactions
+- Review queue with auto-re-queue when tagged source files change
+- CLI: `--html`, `--status`, `--import`, `--list`
+
 ### Debug & Dev Tools
 - Unified DebugOverlay system (F3/F4) with extensible sections
 - Game debug panel (player position, objective progress, equipped item)
@@ -67,35 +86,36 @@ A falling sand puzzle game where players build machines from simple structures t
 
 ---
 
-## Active Work (February/March)
+## Active Work
 
-### Per-Material Physics Attributes — IN PROGRESS
-Design is locked for powder (`density`, `restitution`, `stability`) and liquid (`density`, `restitution`, `spread`). Gas attributes still need design. Gravity remains a global constant.
-
-**Prerequisite:** 2D material movement (Bresenham ray-march replacing the current 3-phase vertical-then-diagonal fallback) — which itself is blocked on fixing the `frameUpdated` chunk-edge stutter bug.
-
-See: `February/PROGRESS-MaterialAttributes.md`, `February/PowderAndLiquidAttributeDesign.md`, `February/TwoDimensionalMaterialMovement.md`
+Phase 2 (Physics & Materials) is complete in the test harness. Next work is either:
+- Porting Phase 2 systems back to Unity
+- Phase 3 (Primitives & Building) — mostly Unity-side
 
 ---
 
 ## Open Bugs
 
-### High Priority
+### Resolved (in test harness)
+| Bug | Resolution |
+|-----|------------|
+| Cluster crack overwrites walls | `SyncClusterToWorld()` now checks `matDef.behaviour != BehaviourType.Static` — static cells (walls, stone) are never overwritten |
+| Displacement BFS slowdown | BFS displacement replaced with physics-based push system — displacement uses cluster velocity direction, no per-pixel search |
+| Clusters break too easily | Fracture now requires CrushPressureFrames > 30 sustained frames — normal collisions don't trigger fracture |
+
+### High Priority (Unity-side)
 | Bug | Summary |
 |-----|---------|
-| Cluster crack overwrites walls | `SyncClusterToWorld()` overwrites wall cells during fracture — no check for static structures |
-| Clusters break too easily | Normal collisions (dropping, stacking) trigger fracture; threshold too low, no distinction from piston crushing |
 | Piston placement deletes dirt | Piston placement clears 16x16 area to Air with no ghost mode — up to 256 cells lost (material conservation violation) |
 | Player controller overhaul | Multiple interaction bugs: falls through ghost belts, clips through ground while digging, lift force not continuous, belt force applied while on lift |
 
-### Medium Priority
+### Medium Priority (Unity-side)
 | Bug | Summary |
 |-----|---------|
 | Material falls back into lift | Material hitting solid above lift falls straight back down in an oscillation loop — no horizontal dispersal for rising cells |
 | Lift fountain lateral force no effect | `velocityX` set on lift exit but never consumed during free-fall — material exits in a straight column |
 | Ghost lift invisible behind dirt | Ghost overlay removed but lift material only written to Air cells, so dirt renders in its place |
 | Lift structure too opaque | Active lifts render fully opaque — can't see materials flowing through them |
-| Displacement BFS slowdown | Cluster sync triggers independent BFS per overlapping pixel — 100 overlaps = 100 searches per frame |
 | Grabbed material lost on drop | Cells that can't be placed in congested areas are silently destroyed |
 | Massive FPS drop on first structure | ~80% FPS drop when first belt/lift is placed — expensive system activating unconditionally |
 
@@ -104,8 +124,6 @@ See: `February/PROGRESS-MaterialAttributes.md`, `February/PowderAndLiquidAttribu
 |-----|---------|
 | Hotbar wall ability mapping | Structure unlock requirements hardcoded in switch statement instead of on item definitions |
 | Player controller mixed responsibilities | Movement + inventory in one MonoBehaviour; should split into PlayerMovement + PlayerInventory |
-| ClusterManager god class | Mostly fixed but duplicated bounding-box computation remains in 5+ locations |
-| Ghost blocking uses ambient state | `currentCellIdx` is implicit mutable state rather than explicit parameter — fragile but no runtime bugs |
 | Material clumps at top of lifts | Material piles at lift exit faster than it can spread — related to missing horizontal dispersal |
 | Dirty rects unused | Per-chunk dirty rectangles tracked but never read by simulation or renderer |
 
@@ -134,12 +152,14 @@ See: `February/PROGRESS-MaterialAttributes.md`, `February/PowderAndLiquidAttribu
 | Belt | Moves things horizontally | **Done** |
 | Lift | Applies upward force | **Done** |
 | Wall | Static blocker | **Done** |
-| Piston | Linear push/pull | **Early** (16x16 cluster push, has bugs) |
+| Piston | Linear push/pull | **Done** (16x16, motor cycle, cell chain pushing, plate clusters) |
 | Plate | Solid surface, can be moved | Not started |
 | Motor/Axle | Provides rotation | Not started |
 | Weight | Has mass, falls | Not started |
 | Hinge | Allows rotation around a point | Not started |
 | Spring | Stores and releases force | Not started |
+| Fan/Blower | Directional wind force (sorts by density/airDrag) | Not started — [design](docs/plans/2026-03-01-sorting-primitives-design.md) |
+| Magnet | Attracts Magnetic materials toward face | Not started — [design](docs/plans/2026-03-01-sorting-primitives-design.md) |
 | Grate | Surface with holes | Not started |
 | Trigger/Release | Timing mechanism | Not started |
 
@@ -149,15 +169,20 @@ Crushing machines especially should be emergent:
 - Stamp Mill = Weight + Release + Guides
 - Roll Crusher = Two Motors + Two Drums
 
-### Heat/Processing — PLANNED
+Sorting machines from fan + magnet + existing structures:
+- Air Classifier = Belt + Fan + Collection Bins
+- Magnetic Separator = Belt + Magnet + Collection Bins
+- Full Ore Processing = Magnetic Separator → Air Classifier → Furnace
 
-Detailed designs exist for all three systems:
+### Heat/Processing — DONE (in test harness)
 
-| System | Summary | Plan |
-|--------|---------|------|
-| Furnace | Rectangular structure, heats interior cells per frame | `Features/PLANNED-FurnaceSystem.md` |
-| Heat transfer | Ambient conduction between neighbors, double-buffered Burst jobs, gradual cooling | `Features/PLANNED-HeatTransfer.md` |
-| Material reactions | Temperature-triggered burning, melting, freezing, boiling | `Features/PLANNED-MaterialReactions.md` |
+All three systems implemented and tested:
+
+| System | Summary | Status |
+|--------|---------|--------|
+| Furnace | 8x8 block structure, directional heat emission (depth-4), ghost mode | **Done** |
+| Heat transfer | Double-buffered conduction between neighbors, per-material conductionRate, Newton's cooling | **Done** |
+| Material reactions | Temperature-triggered melting, freezing, boiling, burning with fire spread | **Done** |
 
 ### Transport (future)
 
@@ -200,22 +225,25 @@ Basic bucket system is implemented. Future bucket types:
 | Fragile Bucket | Empties itself if contaminated | Precision matters |
 | Volatile Bucket | Explodes on wrong material | High stakes |
 
-### Sorting/Separating (future)
+### Sorting/Separating
 
-| Structure | Sorts by |
-|-----------|----------|
-| Vibrating Screen | Shakes - small stuff falls through |
-| Cyclone | Spins - heavy stuff flung outward |
-| Settling Tank | Density - dense sinks, light floats |
-| Magnetic Drum | Material - pulls iron off a belt |
-| Air Classifier | Weight - fan blows light particles away |
-| Trommel | Size - rotating drum with holes |
+Sorting is emergent from force-field primitives + existing structures, not from dedicated sorting machines.
+
+| Method | How it works | Primitives needed |
+|--------|-------------|-------------------|
+| Air classification | Fan blows mixed freefall; light stuff lands far, heavy near | Fan + Belt + Walls |
+| Magnetic separation | Magnet deflects ferrous materials during freefall | Magnet + Belt + Walls |
+| Density settling | Heavy sinks through light in liquid medium | Already emergent (density displacement) |
+| Heat separation | Melt one material, other stays solid | Furnace (already built) |
+| Combustion separation | Burn flammable material away | Furnace + flammable material (already built) |
+
+Future (requires new primitives): Cyclone (Motor), Vibrating Screen (Motor + Plate)
 
 ---
 
 ## Rough Phases
 
-### Phase 1: Foundation — MOSTLY DONE
+### Phase 1: Foundation — MOSTLY DONE (remaining items are Unity-side)
 - [x] Player character & movement
 - [x] Basic tools (shovel)
 - [x] Carrying/dropping materials (grab/drop system)
@@ -227,7 +255,7 @@ Basic bucket system is implemented. Future bucket types:
 - [ ] Fix player-structure interaction bugs (controller overhaul)
 - [ ] Fix lift exit behavior (material falls back in, no lateral spread)
 
-### Phase 2: Physics & Materials
+### Phase 2: Physics & Materials — DONE
 - [x] 2D material movement (Bresenham ray-march)
 - [x] Per-material physics attributes (powder, liquid, gas)
 - [x] Heat transfer & material reactions
