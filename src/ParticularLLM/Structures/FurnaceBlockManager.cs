@@ -276,6 +276,24 @@ public class FurnaceBlockManager : IStructureManager
     }
 
     /// <summary>
+    /// Returns the position and direction of all placed furnace blocks (including ghosts).
+    /// Used for serialization/capture metadata.
+    /// </summary>
+    public List<(int gridX, int gridY, FurnaceDirection direction)> GetPlacedBlocks()
+    {
+        var result = new List<(int gridX, int gridY, FurnaceDirection direction)>();
+        foreach (int blockKey in blockOrigins)
+        {
+            int gridX = blockKey % width;
+            int gridY = blockKey / width;
+            var tile = furnaceTiles[blockKey];
+            if (tile.exists)
+                result.Add((gridX, gridY, tile.direction));
+        }
+        return result;
+    }
+
+    /// <summary>
     /// Simulates furnace heat emission. Each non-ghost furnace block emits heat
     /// to cells in its facing direction, up to FurnaceEmissionDepth cells deep.
     /// Uses a sub-integer accumulator: each frame adds FurnaceHeatRate per emission source,

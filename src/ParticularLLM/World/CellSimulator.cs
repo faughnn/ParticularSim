@@ -34,6 +34,7 @@ public class CellSimulator
     public void SetLiftManager(LiftManager manager) => _liftManager = manager;
     public void SetWallManager(WallManager manager) => _wallManager = manager;
     public void SetFurnaceManager(FurnaceBlockManager manager) => _furnaceManager = manager;
+    public FurnaceBlockManager? FurnaceManager => _furnaceManager;
     public void SetClusterManager(ClusterManager manager) => _clusterManager = manager;
     public void SetPistonManager(PistonManager manager) => _pistonManager = manager;
 
