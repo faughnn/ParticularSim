@@ -24,6 +24,7 @@ public class LiquidDragTests
 
         // Air world
         using var airSim = new SimulationFixture(64, 64);
+        airSim.Description = "Sand dropped through air onto a stone floor to measure settling time.";
         airSim.Fill(0, 63, 64, 1, Materials.Stone);
         airSim.Set(32, 10, Materials.Sand);
         var airCounts = airSim.SnapshotMaterialCounts();
@@ -31,6 +32,7 @@ public class LiquidDragTests
 
         // Water world: fill rows 20-62 with water, stone floor at 63
         using var waterSim = new SimulationFixture(64, 64);
+        waterSim.Description = "Sand dropped through a deep water pool onto a stone floor; should settle slower than in air due to liquid drag.";
         waterSim.Fill(0, 63, 64, 1, Materials.Stone);
         waterSim.Fill(0, 20, 64, 43, Materials.Water);
         waterSim.Set(32, 10, Materials.Sand);
@@ -48,6 +50,7 @@ public class LiquidDragTests
 
         // Water world
         using var waterSim = new SimulationFixture(64, 64);
+        waterSim.Description = "Sand falling through a deep water pool; measures settling time for comparison with oil.";
         waterSim.Fill(0, 63, 64, 1, Materials.Stone);
         waterSim.Fill(0, 20, 64, 43, Materials.Water);
         waterSim.Set(32, 10, Materials.Sand);
@@ -56,6 +59,7 @@ public class LiquidDragTests
 
         // Oil world
         using var oilSim = new SimulationFixture(64, 64);
+        oilSim.Description = "Sand falling through a deep oil pool; should settle faster than through water since oil is less dense.";
         oilSim.Fill(0, 63, 64, 1, Materials.Stone);
         oilSim.Fill(0, 20, 64, 43, Materials.Oil);
         oilSim.Set(32, 10, Materials.Sand);
@@ -71,6 +75,7 @@ public class LiquidDragTests
     {
         // Drag slows but doesn't stop: sand must reach the floor below a water pool.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Sand dropped through a deep water pool should still sink to the stone floor despite drag slowing it.";
         sim.Fill(0, 63, 64, 1, Materials.Stone);
         sim.Fill(0, 20, 64, 43, Materials.Water);
         sim.Set(32, 10, Materials.Sand);
@@ -87,6 +92,7 @@ public class LiquidDragTests
     {
         // Bulk test: many sand cells falling through a deep water pool.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "A wide row of 24 sand cells falling through a deep water pool; all sand must be conserved.";
         sim.Fill(0, 63, 64, 1, Materials.Stone);
         sim.Fill(0, 30, 64, 33, Materials.Water);
 
@@ -108,6 +114,7 @@ public class LiquidDragTests
     {
         // Larger stress test: 10x5 block of sand through water
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "A 10x5 block of sand sinking through a deep water pool; both sand and water counts must be conserved.";
         sim.Fill(0, 63, 64, 1, Materials.Stone);
         sim.Fill(0, 25, 64, 38, Materials.Water);
 

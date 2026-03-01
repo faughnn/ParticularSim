@@ -52,12 +52,18 @@ The Unity project can't be tested by Claude Code — it requires the Unity edito
 - Real-world physics is the north star for design decisions. If two behaviors are equally easy to implement, pick the one that's more physically realistic.
 - The game is a physics sandbox — players should be able to reason about outcomes using their intuition about how the real world works.
 
+**Unity Portability**
+- This test harness will be ported back to the Sandy Unity project (`G:\Sandy`). Keep this in mind when deciding where logic lives.
+- Rendering-adjacent logic (color mapping, visual indicators, heat visualization) should live in C# — not in viewer-specific code (HTML/JS). The viewer consumes pre-computed lookup tables from C#.
+- One source of truth: if Unity and the test harness both need it, it goes in the shared C# simulation library, not duplicated per renderer.
+
 **Questions to ask before implementing:**
 1. Does this logic already exist somewhere? (Don't duplicate)
 2. Where should this logic live? (Single responsibility)
 3. Will other systems need this? (Design for reuse)
 4. Am I adding a special case or extending a system? (Prefer the latter)
 5. How would this behave in real-world physics? (Realism guides design)
+6. Will this need to work in Unity too? (Keep it in portable C#)
 
 ## Testing & Development Workflow
 

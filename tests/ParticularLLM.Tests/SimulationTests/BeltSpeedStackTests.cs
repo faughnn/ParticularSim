@@ -30,6 +30,7 @@ public class BeltSpeedStackTests
     {
         // Default speed=3. After 9 frames, sand should move ~3 cells (3 activations).
         using var sim = new SimulationFixture(128, 64);
+        sim.Description = "A belt with default speed 3 should move sand approximately 3 cells to the right in 9 frames (3 activations).";
         var belts = new BeltManager(sim.World);
         belts.PlaceBelt(16, 40, 1); // right-moving
         sim.Simulator.SetBeltManager(belts);
@@ -53,6 +54,7 @@ public class BeltSpeedStackTests
     {
         // A column of 5 sand cells on the belt surface should all move together.
         using var sim = new SimulationFixture(128, 64);
+        sim.Description = "A vertical stack of 5 sand cells on a belt surface should all move together as a unit when the belt activates.";
         var belts = new BeltManager(sim.World);
         belts.PlaceBelt(16, 40, 1);
         sim.Simulator.SetBeltManager(belts);
@@ -76,6 +78,7 @@ public class BeltSpeedStackTests
     {
         // Sand on belt should stop when hitting an obstacle (occupied cell).
         using var sim = new SimulationFixture(128, 64);
+        sim.Description = "Sand on a belt should stop at x=21 when a stone obstacle occupies x=22, because belts cannot push through occupied cells.";
         var belts = new BeltManager(sim.World);
         belts.PlaceBelt(16, 40, 1);
         sim.Simulator.SetBeltManager(belts);
@@ -101,6 +104,7 @@ public class BeltSpeedStackTests
     public void Belt_LeftDirection_MovesSandLeft()
     {
         using var sim = new SimulationFixture(128, 64);
+        sim.Description = "Sand on a left-moving belt (direction -1) should be transported to the left, ending at an x position less than its starting position.";
         var belts = new BeltManager(sim.World);
         belts.PlaceBelt(40, 40, -1); // left-moving
         sim.Simulator.SetBeltManager(belts);
@@ -123,6 +127,7 @@ public class BeltSpeedStackTests
     {
         // Belt should transport liquid but not gas.
         using var sim = new SimulationFixture(128, 64);
+        sim.Description = "A belt should transport water (liquid) but not steam (gas), since belts only move powder and liquid material types.";
         var belts = new BeltManager(sim.World);
         belts.PlaceBelt(16, 40, 1);
         sim.Simulator.SetBeltManager(belts);
@@ -148,6 +153,7 @@ public class BeltSpeedStackTests
     {
         // Two adjacent belt blocks should merge and transport material across the seam.
         using var sim = new SimulationFixture(128, 64);
+        sim.Description = "Two adjacent belt blocks should merge, allowing sand to be transported seamlessly across the block boundary past x=24.";
         var belts = new BeltManager(sim.World);
         belts.PlaceBelt(16, 40, 1);
         belts.PlaceBelt(24, 40, 1); // merges with first
@@ -174,6 +180,7 @@ public class BeltSpeedStackTests
     {
         // Sand pushed past the belt edge should fall due to gravity.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand pushed past the end of a belt should fall off the edge due to gravity and land on the floor below.";
         var belts = new BeltManager(sim.World);
         belts.PlaceBelt(16, 40, 1); // x=16..23
         sim.Simulator.SetBeltManager(belts);
@@ -200,6 +207,7 @@ public class BeltSpeedStackTests
     public void Belt_ManySand_AllConserved()
     {
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Eight sand grains on a long multi-block belt chain should all be conserved after 500 frames of transport.";
         var belts = new BeltManager(sim.World);
         for (int x = 16; x < 80; x += 8)
             belts.PlaceBelt(x, 40, 1);

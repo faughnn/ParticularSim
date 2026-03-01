@@ -24,6 +24,7 @@ public class DensityDisplacementTests
     {
         // Rule 1+2+3: sand displaces water, both materials conserved
         using var sim = new SimulationFixture();
+        sim.Description = "Sand dropped into a pool of water should sink through it via density displacement, with both sand and water counts conserved.";
         sim.Fill(0, 63, 64, 1, Materials.Stone);
         sim.Fill(30, 50, 5, 12, Materials.Water);   // 60 water cells
         sim.Set(32, 40, Materials.Sand);
@@ -42,6 +43,7 @@ public class DensityDisplacementTests
     {
         // Rule 5: after settling, sand's center of mass is below water's
         using var sim = new SimulationFixture();
+        sim.Description = "Sand placed above water in a container should sink to the bottom, ending up near the floor below the water layer.";
         sim.Fill(25, 50, 1, 14, Materials.Stone);   // Left wall
         sim.Fill(40, 50, 1, 14, Materials.Stone);   // Right wall
         sim.Fill(25, 63, 16, 1, Materials.Stone);   // Floor
@@ -65,6 +67,7 @@ public class DensityDisplacementTests
     {
         // Rule 1: water (density=64) cannot displace sand (density=128)
         using var sim = new SimulationFixture();
+        sim.Description = "Water dropped onto a block of sand should not sink through it, since water is lighter than sand.";
         sim.Fill(0, 63, 64, 1, Materials.Stone);
         sim.Fill(30, 58, 5, 5, Materials.Sand);   // 25 sand cells
         sim.Set(32, 50, Materials.Water);
@@ -83,6 +86,7 @@ public class DensityDisplacementTests
     {
         // Rule 4: static materials block all movement regardless of density
         using var sim = new SimulationFixture();
+        sim.Description = "Sand falling onto a stone floor should stop above it and never pass through, since static materials block all movement.";
         sim.Fill(0, 40, 64, 1, Materials.Stone);
         sim.Set(32, 10, Materials.Sand);
 
@@ -99,6 +103,7 @@ public class DensityDisplacementTests
     {
         // Rule 2: per-frame conservation with sand and water interacting
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "50 sand and 100 water cells interacting via density displacement should all be conserved on every frame.";
         sim.Fill(0, 120, 128, 8, Materials.Stone);
 
         int sandPlaced = 0;

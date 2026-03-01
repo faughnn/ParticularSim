@@ -25,6 +25,7 @@ public class PowderTests
     {
         // Rule 1: powder falls due to gravity pull (tries y+1 even at zero velocity)
         using var sim = new SimulationFixture();
+        sim.Description = "A single sand grain placed in open air should fall exactly one row downward on the first simulation frame.";
         sim.Set(32, 10, Materials.Sand);
         var counts = sim.SnapshotMaterialCounts();
         sim.StepWithInvariants(1, counts);
@@ -38,6 +39,7 @@ public class PowderTests
     {
         // Rule 1: gravity continuously pulls powder downward
         using var sim = new SimulationFixture();
+        sim.Description = "A single sand grain should vacate its starting position after 20 frames of gravitational pull.";
         sim.Set(32, 10, Materials.Sand);
         var counts = sim.SnapshotMaterialCounts();
         sim.StepWithInvariants(20, counts);
@@ -49,6 +51,7 @@ public class PowderTests
     {
         // Rule 1+7: sand falls until it hits the world boundary (bottom row)
         using var sim = new SimulationFixture();
+        sim.Description = "Sand placed near the top should fall all the way to the bottom row of the world when there are no obstacles.";
         sim.Set(32, 0, Materials.Sand);
         var counts = sim.SnapshotMaterialCounts();
         sim.StepWithInvariants(500, counts);
@@ -61,6 +64,7 @@ public class PowderTests
     {
         // Rule 7: sand stops when blocked below by static material (stone)
         using var sim = new SimulationFixture();
+        sim.Description = "Sand falling onto a horizontal stone floor should come to rest on the row directly above the stone.";
         sim.Fill(0, 50, 64, 1, Materials.Stone);
         sim.Set(32, 10, Materials.Sand);
         var counts = sim.SnapshotMaterialCounts();
@@ -74,6 +78,7 @@ public class PowderTests
     {
         // Rule 2: when blocked below, sand slides diagonally, forming a spread pile
         using var sim = new SimulationFixture();
+        sim.Description = "Five sand grains dropped in a column onto a stone floor should spread diagonally rather than stacking in a single column.";
         sim.Fill(0, 60, 64, 4, Materials.Stone);
         for (int i = 0; i < 5; i++)
             sim.Set(32, i, Materials.Sand);
@@ -89,6 +94,7 @@ public class PowderTests
     {
         // Rule 6: per-frame material conservation with 240 sand cells
         using var sim = new SimulationFixture();
+        sim.Description = "240 sand cells falling onto a stone floor should all be conserved with no material lost or duplicated on any frame.";
         sim.Fill(0, 60, 64, 4, Materials.Stone);
         int placed = 0;
         for (int x = 20; x < 44; x++)
@@ -107,6 +113,7 @@ public class PowderTests
     {
         // Rule 7: powder at rest with blocked diagonal stays put
         using var sim = new SimulationFixture();
+        sim.Description = "Sand resting on a stone floor with no open diagonals should remain stationary and not move.";
         sim.Fill(0, 63, 64, 1, Materials.Stone);
         sim.Set(32, 62, Materials.Sand);
         var counts = sim.SnapshotMaterialCounts();
@@ -119,6 +126,7 @@ public class PowderTests
     {
         // Rule 3: dirt (stability=50) resists diagonal sliding more than sand (stability=0)
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "30 dirt grains dropped in a column should form a steep pile with most grains near the center, due to dirt's high slide resistance.";
         sim.Fill(0, 120, 128, 8, Materials.Stone);
         for (int y = 0; y < 30; y++)
             sim.Set(64, y, Materials.Dirt);

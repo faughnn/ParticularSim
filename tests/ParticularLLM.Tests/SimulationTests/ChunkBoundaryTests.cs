@@ -29,6 +29,7 @@ public class ChunkBoundaryTests
     {
         // Chunks are 64x64. Sand at y=63 (bottom of chunk 0) should fall to y=64 (chunk 1).
         using var sim = new SimulationFixture(128, 128); // 2x2 chunks
+        sim.Description = "Sand placed near the bottom of chunk 0 should fall across the vertical chunk boundary into chunk 1 (y >= 64).";
 
         sim.Fill(0, 127, 128, 1, Materials.Stone);
         sim.Set(32, 60, Materials.Sand);
@@ -48,6 +49,7 @@ public class ChunkBoundaryTests
     {
         // Sand sliding diagonally should cross horizontal chunk boundary (x=63/64).
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand placed near the right edge of a chunk should be able to slide diagonally across the horizontal chunk boundary at x=64.";
 
         sim.Fill(0, 127, 128, 1, Materials.Stone);
         // Place sand near right edge of left chunk
@@ -72,6 +74,7 @@ public class ChunkBoundaryTests
         // When sand leaves position at chunk boundary, the adjacent chunk should
         // be woken so material there can fill the gap.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "When sand vacates a chunk boundary position, the adjacent chunk should wake up so nearby material can continue falling.";
 
         sim.Fill(0, 127, 128, 1, Materials.Stone);
 
@@ -93,6 +96,7 @@ public class ChunkBoundaryTests
     {
         // Scatter materials across all 4 chunks (2x2 grid at 128x128).
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand placed in all four quadrants of a 2x2 chunk grid should all be conserved after settling.";
         sim.Fill(0, 127, 128, 1, Materials.Stone);
 
         // Place sand in each quadrant
@@ -112,6 +116,7 @@ public class ChunkBoundaryTests
     {
         // Water spreading should maintain conservation even across chunks.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Water placed near a chunk boundary should spread across chunks without losing any material.";
         sim.Fill(0, 120, 128, 8, Materials.Stone);
 
         // Pour water near a chunk boundary
@@ -131,6 +136,7 @@ public class ChunkBoundaryTests
     {
         // A chunk containing a belt structure should stay active via HasStructure flag.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "A chunk containing a belt structure should stay active via HasStructure, allowing sand to fall onto the belt and be transported.";
         var belts = new BeltManager(sim.World);
         belts.PlaceBelt(16, 40, 1);
         sim.Simulator.SetBeltManager(belts);
@@ -159,6 +165,7 @@ public class ChunkBoundaryTests
     {
         // 4-pass checkerboard mode should conserve materials across chunk boundaries.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand scattered across chunks in 4-pass checkerboard mode should all be conserved after 500 frames.";
         sim.Simulator.UseFourPassGrouping = true;
 
         sim.Fill(0, 127, 128, 1, Materials.Stone);
@@ -178,6 +185,7 @@ public class ChunkBoundaryTests
     public void FourPassMode_SandSettlesToFloor()
     {
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand placed at chunk boundary x=64 in 4-pass mode should fall all the way to the floor and settle.";
         sim.Simulator.UseFourPassGrouping = true;
 
         sim.Fill(0, 127, 128, 1, Materials.Stone);

@@ -19,6 +19,7 @@ public class ScenarioTests
     {
         // Rule 1: per-frame conservation across a large multi-chunk world
         var sim = new SimulationFixture(512, 256);
+        sim.Description = "A large multi-chunk world with 1000 sand and 500 water cells should conserve all materials every frame across 1000 steps.";
         sim.Fill(0, 240, 512, 16, Materials.Stone);
 
         int sandPlaced = 0, waterPlaced = 0;
@@ -46,6 +47,7 @@ public class ScenarioTests
     {
         // Rule 2: sand at chunk boundaries falls correctly without duplication
         var sim = new SimulationFixture(192, 128);
+        sim.Description = "Sand placed at a chunk boundary (x=63 and x=64) should fall into adjacent chunks without duplication or loss.";
         sim.Fill(0, 120, 192, 8, Materials.Stone);
 
         sim.Set(63, 10, Materials.Sand);
@@ -60,6 +62,7 @@ public class ScenarioTests
     {
         // Rule 3: different powders fall under the same gravity
         var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand and Dirt dropped from the same height should both fall under gravity and leave their starting positions empty.";
         sim.Fill(0, 120, 128, 8, Materials.Stone);
 
         sim.Set(30, 10, Materials.Sand);

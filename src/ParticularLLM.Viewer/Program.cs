@@ -1,17 +1,5 @@
+using System.Diagnostics;
 using ParticularLLM.Viewer;
-using ParticularLLM.Viewer.Scenarios;
-
-// Collect all scenarios
-var providers = new IScenarioProvider[]
-{
-    new CoreScenarios(),
-    new StructureScenarios(),
-    new InteractionScenarios(),
-};
-
-var scenarios = new List<ScenarioDef>();
-foreach (var provider in providers)
-    scenarios.AddRange(provider.GetScenarios());
 
 // Find repo root (where .git lives)
 var repoRoot = Directory.GetCurrentDirectory();
@@ -36,12 +24,6 @@ switch (args[0])
     case "--import":
         RunImport(args);
         break;
-    case "--status":
-        RunStatus();
-        break;
-    case "--list":
-        RunList();
-        break;
     default:
         Console.Error.WriteLine($"Unknown command: {args[0]}");
         PrintUsage();
@@ -50,53 +32,126 @@ switch (args[0])
 
 void RunHtmlExport(string[] args)
 {
-    bool exportAll = args.Contains("--all");
     string outputPath = "viewer.html";
 
-    // Check for explicit output path (--html output.html or --html --all output.html)
+    // Check for explicit output path
     for (int i = 1; i < args.Length; i++)
     {
-        if (args[i] != "--all" && !args[i].StartsWith("--"))
+        if (!args[i].StartsWith("--"))
         {
             outputPath = args[i];
             break;
         }
     }
 
-    List<ScenarioDef> toExport;
-    if (exportAll)
-    {
-        toExport = scenarios;
-        Console.WriteLine($"Exporting ALL {toExport.Count} scenarios...");
-    }
-    else
-    {
-        var state = queue.LoadState();
-        toExport = queue.ComputeQueue(scenarios, state);
+    // Create temp capture directory
+    var captureDir = Path.Combine(Path.GetTempPath(), $"particularllm-capture-{Guid.NewGuid():N}");
+    Directory.CreateDirectory(captureDir);
 
-        if (toExport.Count == 0)
+    try
+    {
+        var testProject = Path.Combine(repoRoot!, "tests", "ParticularLLM.Tests");
+
+        Console.WriteLine("Building test project...");
+        var buildPsi = new ProcessStartInfo("dotnet", $"build \"{testProject}\" -c Release -v quiet")
         {
-            Console.WriteLine("Queue is empty — all scenarios have been reviewed and no code has changed.");
-            Console.WriteLine("Use --html --all to export all scenarios anyway.");
+            WorkingDirectory = repoRoot,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+        using (var buildProc = Process.Start(buildPsi)!)
+        {
+            buildProc.WaitForExit();
+            if (buildProc.ExitCode != 0)
+            {
+                var errors = buildProc.StandardError.ReadToEnd();
+                Console.Error.WriteLine($"Build failed:\n{errors}");
+                return;
+            }
+        }
+
+        Console.WriteLine($"Running tests with frame capture...");
+        var testPsi = new ProcessStartInfo("dotnet", $"test \"{testProject}\" --no-build -c Release -v quiet")
+        {
+            WorkingDirectory = repoRoot,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+        testPsi.Environment["PARTICULARLLM_CAPTURE"] = captureDir;
+
+        using (var testProc = Process.Start(testPsi)!)
+        {
+            var stdout = testProc.StandardOutput.ReadToEnd();
+            var stderr = testProc.StandardError.ReadToEnd();
+            testProc.WaitForExit();
+
+            Console.Write(stdout);
+            if (!string.IsNullOrWhiteSpace(stderr))
+                Console.Error.Write(stderr);
+
+            if (testProc.ExitCode != 0)
+                Console.Error.WriteLine("Warning: some tests failed, but continuing with capture export.");
+        }
+
+        // Read captured files
+        var capturedFiles = Directory.GetFiles(captureDir, "*.bin");
+        Console.WriteLine($"Found {capturedFiles.Length} captured test scenarios.");
+
+        if (capturedFiles.Length == 0)
+        {
+            Console.Error.WriteLine("No capture files produced. Tests may not use SimulationFixture.");
             return;
         }
 
-        // Shuffle for variety
-        var rng = new Random();
-        toExport = toExport.OrderBy(_ => rng.Next()).ToList();
+        Console.Write("Reading capture files...");
+        var captured = CaptureReader.ReadCaptureDirectory(captureDir);
+        Console.WriteLine($" {captured.Count} scenarios loaded.");
 
-        Console.WriteLine($"Exporting {toExport.Count} queued scenarios...");
-        queue.SaveState(state); // Save any re-queue removals from ComputeQueue
+        long totalBytes = captured.Sum(s => (long)s.CompressedBase64.Length);
+        Console.WriteLine($"Total compressed data: {totalBytes / 1024:N0} KB (base64)");
+
+        var reviewState = queue.LoadState();
+
+        // Auto-import any review JSON files in repo root
+        var currentHash = queue.GetCurrentHash();
+        foreach (var reviewFile in Directory.GetFiles(repoRoot!, "review-*.json")
+            .Where(f => !Path.GetFileName(f).Equals("review-state.json", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(f => f))
+        {
+            try
+            {
+                var (p, f, s) = queue.ImportReview(reviewFile, reviewState, currentHash);
+                Console.WriteLine($"Auto-imported {Path.GetFileName(reviewFile)}: {p} pass, {f} fail, {s} skipped.");
+                File.Delete(reviewFile);
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Skipping {Path.GetFileName(reviewFile)}: {ex.Message}");
+            }
+        }
+
+        int invalidated = queue.InvalidateStaleReviews(reviewState, captured);
+        if (invalidated > 0)
+            Console.WriteLine($"Re-queued {invalidated} scenarios (code changed since last review).");
+
+        // Update baseline hash so next export compares from here
+        reviewState.LastExportHash = queue.GetCurrentHash();
+        queue.SaveState(reviewState);
+
+        Console.Write("Generating HTML...");
+        HtmlExporter.Export(captured, outputPath, reviewState);
+        Console.WriteLine(" done.");
+
+        var fileInfo = new FileInfo(Path.GetFullPath(outputPath));
+        Console.WriteLine($"Output: {fileInfo.FullName} ({fileInfo.Length / (1024 * 1024.0):F1} MB)");
     }
-
-    HtmlExporter.Export(toExport, outputPath);
-
-    // Update lastExportHash
-    var exportState = queue.LoadState();
-    exportState.LastExportHash = queue.GetCurrentHash();
-    queue.SaveState(exportState);
-
-    Console.WriteLine($"Done! Open {Path.GetFullPath(outputPath)} in a browser.");
+    finally
+    {
+        try { Directory.Delete(captureDir, recursive: true); }
+        catch { /* best effort */ }
+    }
 }
 
 void RunImport(string[] args)
@@ -119,33 +174,7 @@ void RunImport(string[] args)
     var (passed, failed, skipped) = queue.ImportReview(jsonPath, state, currentHash);
     queue.SaveState(state);
 
-    // Compute remaining queue
-    var remaining = queue.ComputeQueue(scenarios, state);
-    Console.WriteLine($"Imported: {passed} pass, {failed} fail, {skipped} skipped. Queue: {remaining.Count} remaining.");
-}
-
-void RunStatus()
-{
-    var state = queue.LoadState();
-    queue.PrintStatus(scenarios, state);
-}
-
-void RunList()
-{
-    Console.WriteLine($"Available scenarios ({scenarios.Count}):");
-    Console.WriteLine();
-    string? lastCategory = null;
-    for (int i = 0; i < scenarios.Count; i++)
-    {
-        var s = scenarios[i];
-        if (s.Category != lastCategory)
-        {
-            if (lastCategory != null) Console.WriteLine();
-            Console.WriteLine($"  [{s.Category}]");
-            lastCategory = s.Category;
-        }
-        Console.WriteLine($"    {i + 1,2}. {s.Name,-30} [{string.Join(", ", s.Tags)}]  {s.Width}x{s.Height}  {s.SuggestedFrames} frames");
-    }
+    Console.WriteLine($"Imported: {passed} pass, {failed} fail, {skipped} skipped.");
 }
 
 void PrintUsage()
@@ -153,10 +182,7 @@ void PrintUsage()
     Console.WriteLine("ParticularLLM Viewer");
     Console.WriteLine();
     Console.WriteLine("Usage:");
-    Console.WriteLine("  dotnet run -- --html              Export queued scenarios to viewer.html");
-    Console.WriteLine("  dotnet run -- --html --all        Export ALL scenarios (ignore queue)");
+    Console.WriteLine("  dotnet run -- --html              Run tests, capture frames, export viewer.html");
     Console.WriteLine("  dotnet run -- --html out.html     Export to specific file");
     Console.WriteLine("  dotnet run -- --import review.json  Import review results from browser");
-    Console.WriteLine("  dotnet run -- --status            Show review queue status");
-    Console.WriteLine("  dotnet run -- --list              List all scenarios with tags");
 }

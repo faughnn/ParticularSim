@@ -259,6 +259,7 @@ public class ClusterDisplacementDragTests
     {
         // Run with full cell simulation (sand settles, water flows) + cluster physics.
         var sim = new SimulationFixture(64, 64);
+        sim.Description = "A cluster falling into a sand pile with full cell simulation running should settle and conserve both sand and cluster materials.";
         var manager = new ClusterManager();
         sim.Simulator.SetClusterManager(manager);
 

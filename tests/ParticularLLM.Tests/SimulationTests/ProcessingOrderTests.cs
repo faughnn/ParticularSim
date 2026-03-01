@@ -19,6 +19,7 @@ public class ProcessingOrderTests
         // because bottom-to-top processing lets each grain fall before the one above is processed.
         // If we processed top-to-bottom, only the bottom grain would move per frame.
         using var sim = new SimulationFixture();
+        sim.Description = "A column of 5 sand grains should cascade downward in a single frame due to bottom-to-top processing order.";
         sim.Fill(0, 63, 64, 1, Materials.Stone); // Floor
 
         // Stack 5 sand grains in a column with a gap below
@@ -48,6 +49,7 @@ public class ProcessingOrderTests
         // should be roughly symmetric (not biased left or right).
         // Alternating X direction prevents systematic left or right drift.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand dropped from a single central column should form a roughly symmetric pile, with no strong left or right bias from alternating X direction.";
         sim.Fill(0, 120, 128, 8, Materials.Stone);
 
         // Drop 40 sand grains in column 64 (center)
@@ -86,6 +88,7 @@ public class ProcessingOrderTests
         // (processed next) also gets lift force.
         // This test verifies lift cells actually propagate upward through the lift.
         var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand placed inside a tall lift column should be pushed upward despite bottom-to-top processing, ending at a lower Y than where it started.";
         var lifts = new LiftManager(sim.World);
 
         // Tall lift column
@@ -124,6 +127,7 @@ public class ProcessingOrderTests
         // even though only the core region is simulated. The extended region (32px buffer)
         // allows cells to LAND outside their home chunk.
         var sim = new SimulationFixture(128, 128); // 2x2 chunks
+        sim.Description = "Sand at the bottom row of a chunk's core region should fall across the chunk boundary into the chunk below via the extended region buffer.";
 
         // Place sand at y=63 (last row of chunk 0's core), with nothing below
         sim.Set(32, 63, Materials.Sand);
@@ -145,6 +149,7 @@ public class ProcessingOrderTests
         // Water spreads horizontally. With alternating X direction,
         // it should spread roughly evenly in both directions.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Water dropped in a centered column inside a container should spread roughly evenly to both sides, with no directional bias from processing order.";
 
         // Sealed container: walls + floor (water placed INSIDE to prevent escape)
         sim.Fill(54, 100, 1, 28, Materials.Stone);  // Left wall

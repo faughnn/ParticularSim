@@ -21,6 +21,7 @@ public class CrossSystemIntegrationTests
     public void Sand_FallsOntoBelt_GetsTransported()
     {
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand dropped above a belt should fall onto it, be transported rightward past the belt end, and then fall off to the floor.";
         var belts = new BeltManager(sim.World);
         belts.PlaceBelt(32, 80, 1); // right-moving
         belts.PlaceBelt(40, 80, 1); // merged
@@ -48,6 +49,7 @@ public class CrossSystemIntegrationTests
     public void Sand_ThroughLift_LandsOnFloor()
     {
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand placed below a lift should enter the lift, be pushed upward, exit, and eventually settle on the floor.";
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(48, 72);
         lifts.PlaceLift(48, 80);
@@ -78,6 +80,7 @@ public class CrossSystemIntegrationTests
         // Sand exits lift with lateral velocity, should land on a nearby belt
         // and get transported.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand exiting a lift with lateral velocity should land on or pass a nearby belt to the right, ending up far from the lift.";
 
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(48, 72);
@@ -116,6 +119,7 @@ public class CrossSystemIntegrationTests
     {
         // Wall at the end of a belt should block material from being pushed off.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "A wall placed at the end of a belt should block sand from being pushed off, and the sand should remain conserved.";
 
         var belts = new BeltManager(sim.World);
         belts.PlaceBelt(32, 80, 1);
@@ -144,6 +148,7 @@ public class CrossSystemIntegrationTests
     public void Lift_SandAndWater_BothExit()
     {
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Both sand and water placed inside a lift should be pushed upward, exit the lift, and remain conserved.";
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(48, 72);
         lifts.PlaceLift(48, 80);
@@ -170,6 +175,7 @@ public class CrossSystemIntegrationTests
         // Complex scenario: belt feeds material to a lift, lift pushes up,
         // material falls back down to floor.
         using var sim = new SimulationFixture(256, 256);
+        sim.Description = "Sand dropped onto a belt chain that feeds into a lift should be transported, lifted, and then settle, with all material conserved throughout.";
 
         var belts = new BeltManager(sim.World);
         for (int x = 40; x < 88; x += 8)
@@ -207,6 +213,7 @@ public class CrossSystemIntegrationTests
         // After both sand and water exit a lift and settle, sand (heavier)
         // should be below water (lighter).
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand and water exiting a lift into a container should settle with density ordering preserved: sand below water.";
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(48, 64);
         lifts.PlaceLift(48, 72);

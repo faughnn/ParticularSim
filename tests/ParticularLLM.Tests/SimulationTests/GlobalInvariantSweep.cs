@@ -22,6 +22,7 @@ public class GlobalInvariantSweep
     public void Invariants_SandPile()
     {
         using var sim = new SimulationFixture();
+        sim.Description = "A row of sand dropped onto a stone floor should settle with all material conserved and no floating powder.";
         sim.Fill(0, 60, 64, 4, Materials.Stone);
         for (int x = 20; x < 44; x++)
             sim.Set(x, 10, Materials.Sand);
@@ -38,6 +39,7 @@ public class GlobalInvariantSweep
     public void Invariants_WaterPool()
     {
         using var sim = new SimulationFixture();
+        sim.Description = "Water poured into a walled container should settle with all material conserved and no floating liquid.";
         sim.Fill(20, 40, 1, 24, Materials.Stone); // left wall
         sim.Fill(43, 40, 1, 24, Materials.Stone); // right wall
         sim.Fill(20, 63, 24, 1, Materials.Stone);  // floor
@@ -58,6 +60,7 @@ public class GlobalInvariantSweep
     public void Invariants_MixedMaterials()
     {
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand, water, and oil dropped in separate blocks should all be fully conserved after 500 frames of mixed-material interaction.";
         sim.Fill(0, 120, 128, 8, Materials.Stone);
 
         sim.Fill(50, 50, 10, 5, Materials.Sand);
@@ -78,6 +81,7 @@ public class GlobalInvariantSweep
     public void Invariants_DensityLayering_Settled()
     {
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Oil, water, and sand placed in reverse density order should self-sort so sand sinks below water, and water sinks below oil.";
         sim.Fill(20, 40, 1, 24, Materials.Stone);
         sim.Fill(43, 40, 1, 24, Materials.Stone);
         sim.Fill(20, 63, 24, 1, Materials.Stone);
@@ -108,6 +112,7 @@ public class GlobalInvariantSweep
     public void Invariants_SteamEnclosure()
     {
         using var sim = new SimulationFixture();
+        sim.Description = "Steam enclosed in a sealed stone box should remain fully conserved after 500 frames, with no material escaping the enclosure.";
         sim.Fill(20, 20, 24, 1, Materials.Stone);
         sim.Fill(20, 43, 24, 1, Materials.Stone);
         sim.Fill(20, 20, 1, 24, Materials.Stone);
@@ -129,6 +134,7 @@ public class GlobalInvariantSweep
     public void Invariants_SandOnBelt()
     {
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand falling onto a long belt chain should be transported and conserved, with all 8 grains accounted for after 500 frames.";
         var belts = new BeltManager(sim.World);
         for (int x = 16; x < 80; x += 8)
             belts.PlaceBelt(x, 40, 1);
@@ -151,6 +157,7 @@ public class GlobalInvariantSweep
     public void Invariants_SandThroughLift()
     {
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "A single sand grain entering a lift column should be pushed upward and conserved through the entire lift-and-settle cycle.";
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(48, 72);
         lifts.PlaceLift(48, 80);
@@ -172,6 +179,7 @@ public class GlobalInvariantSweep
     public void Invariants_LargeScale_AllMaterials()
     {
         using var sim = new SimulationFixture(256, 256);
+        sim.Description = "Large quantities of sand, water, and dirt scattered across a 256x256 world should all be fully conserved after 300 frames.";
         sim.Fill(0, 240, 256, 16, Materials.Stone);
 
         // Scatter various materials
@@ -197,6 +205,7 @@ public class GlobalInvariantSweep
     public void Invariants_FourPassMode_Conservation()
     {
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand and water should be fully conserved in 4-pass checkerboard mode after 300 frames of simulation.";
         sim.Simulator.UseFourPassGrouping = true;
 
         sim.Fill(0, 120, 128, 8, Materials.Stone);
@@ -216,6 +225,7 @@ public class GlobalInvariantSweep
     public void Invariants_SettledSand_NoFloating()
     {
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "A wide band of sand should settle with all material conserved and no powder floating above air.";
         sim.Fill(0, 120, 128, 8, Materials.Stone);
 
         // Wide band of sand

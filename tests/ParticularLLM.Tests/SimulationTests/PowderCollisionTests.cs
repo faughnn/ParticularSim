@@ -34,6 +34,7 @@ public class PowderCollisionTests
         // Sand dropped from height should spread on impact (momentum → diagonal).
         // Not just sitting in one spot.
         using var sim = new SimulationFixture(64, 128);
+        sim.Description = "A single sand grain dropped from a great height should reach the stone floor after impact, demonstrating momentum transfer on collision.";
 
         sim.Fill(0, 120, 64, 8, Materials.Stone); // Floor
         sim.Set(32, 0, Materials.Sand);
@@ -55,6 +56,7 @@ public class PowderCollisionTests
         // A column of sand dropped onto a flat surface should spread into a triangular pile.
         // Wider at the base, narrower at the top.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "20 sand grains dropped in a column should form a pyramid-shaped pile that is wider at the base than at the top.";
 
         sim.Fill(0, 60, 64, 4, Materials.Stone); // Floor
         // Column of 20 sand grains
@@ -93,6 +95,7 @@ public class PowderCollisionTests
     {
         // During diagonal momentum transfer, material count must stay constant.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "50 sand grains dropped from height with diagonal momentum transfer on impact should all be conserved.";
 
         sim.Fill(0, 120, 128, 8, Materials.Stone);
         // Drop 50 sand grains from height
@@ -112,6 +115,7 @@ public class PowderCollisionTests
     {
         // Sand on the edge of a platform should slide diagonally off it.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Sand placed on the edge of a small platform should slide diagonally off and fall to the floor below.";
 
         // Small platform in the middle
         sim.Fill(30, 40, 5, 1, Materials.Stone);
@@ -134,6 +138,7 @@ public class PowderCollisionTests
     {
         // If diagonal in one direction is blocked, sand tries opposite.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Sand with a wall blocking one diagonal direction should try the opposite diagonal and land just above the floor.";
 
         // Stone floor with a wall on the right side
         sim.Fill(0, 50, 64, 1, Materials.Stone);
@@ -159,6 +164,7 @@ public class PowderCollisionTests
     {
         // Dirt (stability=50) should form a steeper pile than sand (stability=0).
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "30 dirt grains dropped in a column should form a pile; its spread width is measured for comparison with sand.";
 
         sim.Fill(0, 120, 128, 8, Materials.Stone);
 
@@ -181,6 +187,7 @@ public class PowderCollisionTests
 
         // Now do same with sand in a fresh world
         using var sim2 = new SimulationFixture(128, 128);
+        sim2.Description = "30 sand grains dropped in a column should spread wider than dirt due to zero slide resistance.";
         sim2.Fill(0, 120, 128, 8, Materials.Stone);
         for (int y = 0; y < 30; y++)
             sim2.Set(64, y, Materials.Sand);
@@ -210,6 +217,7 @@ public class PowderCollisionTests
         // Sand has stability=0, so Phase 3 slide check always passes.
         // Single sand grain on a corner should always slide off.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Sand with zero slide resistance placed on a platform edge should always slide off and fall to the floor.";
 
         // Small platform
         sim.Fill(30, 40, 3, 1, Materials.Stone);
@@ -234,6 +242,7 @@ public class PowderCollisionTests
     {
         // Pouring sand onto a flat surface should form a pile with all grains conserved.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "15 sand grains poured onto a flat stone floor should form a settled pile with all grains conserved and none floating.";
 
         sim.Fill(0, 60, 64, 4, Materials.Stone);
 
@@ -257,6 +266,7 @@ public class PowderCollisionTests
     {
         // Sand dropped from center should form a roughly symmetric pile.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "40 sand grains dropped from the center column should form a roughly symmetric pile around the drop point.";
 
         sim.Fill(0, 120, 128, 8, Materials.Stone);
         for (int y = 0; y < 40; y++)
@@ -278,6 +288,7 @@ public class PowderCollisionTests
     {
         // Sand that can't move anywhere should have velocity zeroed.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Sand completely enclosed in a stone box should settle with all velocity components zeroed since no movement is possible.";
 
         // Box: sand enclosed on all sides
         sim.Fill(30, 30, 5, 1, Materials.Stone); // Top
@@ -318,6 +329,7 @@ public class PowderCollisionTests
         // Sand that is stuck (Phase 3 fails) but has air below should keep chunk dirty
         // so gravity can eventually move it.
         using var sim = new SimulationFixture();
+        sim.Description = "Sand in a narrow 1-wide gap with air below should eventually fall via gravity as the fractional accumulator overflows, keeping the chunk dirty.";
 
         // Narrow gap: sand can't slide but has air below eventually
         sim.Fill(31, 10, 1, 50, Materials.Stone);

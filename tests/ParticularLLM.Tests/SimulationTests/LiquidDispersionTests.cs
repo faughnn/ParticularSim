@@ -33,6 +33,7 @@ public class LiquidDispersionTests
     public void Water_FallsDownward()
     {
         using var sim = new SimulationFixture();
+        sim.Description = "A single water cell placed near the top should fall to the stone floor.";
         sim.Set(32, 10, Materials.Water);
         sim.Fill(0, 63, 64, 1, Materials.Stone);
 
@@ -48,6 +49,7 @@ public class LiquidDispersionTests
     public void Water_FallsToFloor_MaterialConserved()
     {
         using var sim = new SimulationFixture();
+        sim.Description = "Eight water cells dropped onto a stone floor should all be conserved after settling.";
         sim.Fill(0, 63, 64, 1, Materials.Stone);
 
         for (int x = 28; x < 36; x++)
@@ -66,6 +68,7 @@ public class LiquidDispersionTests
     {
         // Water sitting on a floor should spread horizontally.
         using var sim = new SimulationFixture();
+        sim.Description = "A 3-wide column of water on a stone floor should spread horizontally wider than its initial 3-cell width.";
         sim.Fill(0, 62, 64, 2, Materials.Stone); // Floor
 
         // Place a 3-wide column of water
@@ -94,6 +97,7 @@ public class LiquidDispersionTests
     {
         // Water placed at center should spread in both directions.
         using var sim = new SimulationFixture(128, 64);
+        sim.Description = "A column of water placed at the center of a wide floor should spread roughly symmetrically in both directions.";
         sim.Fill(0, 62, 128, 2, Materials.Stone);
 
         // Column of water at center
@@ -113,6 +117,7 @@ public class LiquidDispersionTests
     {
         // Water poured into a sealed container should stay inside.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Water poured into a sealed stone container should remain inside the walls after settling.";
 
         // Sealed box: walls, floor between walls. Full-width floor below as safety.
         sim.Fill(0, 63, 64, 1, Materials.Stone);   // World floor
@@ -146,6 +151,7 @@ public class LiquidDispersionTests
         // Water that falls from height should spread more than water placed at surface
         // (velocity boost adds |velocityY|/3 to spread distance).
         using var sim = new SimulationFixture(128, 64);
+        sim.Description = "Water dropped from the top of the world should spread further on landing than water placed directly on the floor due to velocity boost.";
         sim.Fill(0, 62, 128, 2, Materials.Stone);
 
         // Water dropped from height
@@ -167,6 +173,7 @@ public class LiquidDispersionTests
 
         // Compare with water placed at surface level
         using var sim2 = new SimulationFixture(128, 64);
+        sim2.Description = "Water placed directly on the floor surface for comparison; should spread less than dropped water.";
         sim2.Fill(0, 62, 128, 2, Materials.Stone);
         sim2.Set(64, 61, Materials.Water);
         sim2.Set(65, 61, Materials.Water);
@@ -201,6 +208,7 @@ public class LiquidDispersionTests
         int runFrames = 300;
 
         using var sim = new SimulationFixture(512, 64);
+        sim.Description = "Twenty oil cells on a wide floor; oil should spread less than water due to lower spread and higher stability.";
         sim.Fill(0, 62, 512, 2, Materials.Stone);
         for (int x = 246; x < 266; x++)
             sim.Set(x, 61, Materials.Oil);
@@ -218,6 +226,7 @@ public class LiquidDispersionTests
         int oilSpread = oilMaxX - oilMinX + 1;
 
         using var sim2 = new SimulationFixture(512, 64);
+        sim2.Description = "Twenty water cells on a wide floor; water should spread at least as much as oil for comparison.";
         sim2.Fill(0, 62, 512, 2, Materials.Stone);
         for (int x = 246; x < 266; x++)
             sim2.Set(x, 61, Materials.Water);
@@ -245,6 +254,7 @@ public class LiquidDispersionTests
     public void Water_NoFloatingLiquid_AfterSettled()
     {
         using var sim = new SimulationFixture();
+        sim.Description = "A block of water dropped onto a stone floor should settle with no floating liquid cells remaining.";
         sim.Fill(0, 60, 64, 4, Materials.Stone);
 
         for (int x = 20; x < 44; x++)
@@ -262,6 +272,7 @@ public class LiquidDispersionTests
     {
         // A single water drop should eventually stop moving.
         using var sim = new SimulationFixture();
+        sim.Description = "A single water cell should eventually settle and stop moving within a reasonable number of frames.";
         sim.Fill(0, 63, 64, 1, Materials.Stone);
         sim.Set(32, 10, Materials.Water);
 
@@ -279,6 +290,7 @@ public class LiquidDispersionTests
     public void Water_LargeVolume_MaterialConserved()
     {
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "A large 28x20 block of water dropped onto a stone floor should be fully conserved after 300 frames.";
         sim.Fill(0, 120, 128, 8, Materials.Stone);
 
         int waterCount = 0;
@@ -300,6 +312,7 @@ public class LiquidDispersionTests
     {
         // Water on a step should fall diagonally, not get stuck.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Water placed on top of a staircase of stone steps should flow down diagonally and reach the floor.";
 
         // Staircase pattern
         sim.Fill(20, 40, 10, 1, Materials.Stone);

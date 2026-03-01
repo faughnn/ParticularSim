@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using ParticularLLM.Viewer.Scenarios;
+using static ParticularLLM.Viewer.HtmlExporter;
 
 namespace ParticularLLM.Viewer;
 
@@ -9,7 +9,7 @@ public class ReviewQueue
 {
     private const string StateFileName = "review-state.json";
 
-    // Source file → tags mapping
+    // Source file → tags mapping: when a source file changes, scenarios with these tags are invalidated
     private static readonly Dictionary<string, string[]> SourceFileTags = new(StringComparer.OrdinalIgnoreCase)
     {
         ["SimulateChunksLogic.cs"] = ["powder", "liquid", "gas", "density", "heat"],
@@ -65,9 +65,80 @@ public class ReviewQueue
     }
 
     /// <summary>
-    /// Gets the set of tags affected by code changes since the given commit hash.
+    /// Marks scenarios for retest when relevant code has changed.
+    /// For reviewed scenarios: compares against reviewedAtHash.
+    /// For unreviewed scenarios: compares against lastExportHash.
+    /// Returns the number of scenarios marked for retest.
     /// </summary>
-    public HashSet<string> GetChangedTags(string sinceHash)
+    public int InvalidateStaleReviews(ReviewState state, List<ScenarioData> scenarios)
+    {
+        int invalidated = 0;
+
+        // --- Pass 1: reviewed scenarios (compare against each scenario's reviewedAtHash) ---
+        var byHash = new Dictionary<string, List<(string name, ScenarioData scenario)>>();
+        foreach (var scenario in scenarios)
+        {
+            if (!state.Scenarios.TryGetValue(scenario.Name, out var review))
+                continue;
+            if (review.ReviewedAtHash == null)
+                continue;
+
+            if (!byHash.TryGetValue(review.ReviewedAtHash, out var list))
+            {
+                list = new List<(string, ScenarioData)>();
+                byHash[review.ReviewedAtHash] = list;
+            }
+            list.Add((scenario.Name, scenario));
+        }
+
+        foreach (var (hash, reviewedScenarios) in byHash)
+        {
+            var changedFiles = GetChangedFiles(hash);
+            if (changedFiles.Count == 0)
+                continue;
+
+            var affectedTags = BuildAffectedTags(changedFiles);
+
+            foreach (var (name, scenario) in reviewedScenarios)
+            {
+                if (IsAffected(scenario, changedFiles, affectedTags))
+                {
+                    state.Scenarios[name].Status = "retest";
+                    invalidated++;
+                }
+            }
+        }
+
+
+        return invalidated;
+    }
+
+    private static HashSet<string> BuildAffectedTags(HashSet<string> changedFiles)
+    {
+        var tags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var file in changedFiles)
+        {
+            if (SourceFileTags.TryGetValue(file, out var fileTags))
+            {
+                foreach (var tag in fileTags)
+                    tags.Add(tag);
+            }
+        }
+        return tags;
+    }
+
+    private static bool IsAffected(ScenarioData scenario, HashSet<string> changedFiles, HashSet<string> affectedTags)
+    {
+        // Check tag overlap with changed sim source files
+        if (scenario.Tags.Any(t => affectedTags.Contains(t)))
+            return true;
+
+        // Check if the test file itself changed
+        string classFile = scenario.Category + "Tests.cs";
+        return changedFiles.Contains(classFile);
+    }
+
+    private HashSet<string> GetChangedFiles(string sinceHash)
     {
         var psi = new ProcessStartInfo("git", $"diff --name-only {sinceHash}..HEAD")
         {
@@ -79,66 +150,10 @@ public class ReviewQueue
         var output = proc.StandardOutput.ReadToEnd();
         proc.WaitForExit();
 
-        var changedTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var files = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var line in output.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-        {
-            var fileName = Path.GetFileName(line.Trim());
-            if (SourceFileTags.TryGetValue(fileName, out var tags))
-            {
-                foreach (var tag in tags)
-                    changedTags.Add(tag);
-            }
-        }
-        return changedTags;
-    }
-
-    /// <summary>
-    /// Computes which scenarios need review. Re-queues reviewed scenarios whose
-    /// relevant source code has changed since their review.
-    /// </summary>
-    public List<ScenarioDef> ComputeQueue(List<ScenarioDef> allScenarios, ReviewState state)
-    {
-        // Find the oldest reviewedAtHash to minimize git diff calls
-        string? oldestHash = null;
-        foreach (var entry in state.Scenarios.Values)
-        {
-            if (entry.ReviewedAtHash != null)
-            {
-                // Use the first one we find; we'll do one diff from it
-                if (oldestHash == null)
-                    oldestHash = entry.ReviewedAtHash;
-            }
-        }
-
-        HashSet<string>? changedTags = null;
-        if (oldestHash != null)
-        {
-            changedTags = GetChangedTags(oldestHash);
-        }
-
-        var queue = new List<ScenarioDef>();
-        foreach (var scenario in allScenarios)
-        {
-            if (!state.Scenarios.TryGetValue(scenario.Name, out var entry))
-            {
-                // Never reviewed
-                queue.Add(scenario);
-                continue;
-            }
-
-            // Check if code changed for this scenario's tags
-            if (changedTags != null && scenario.Tags.Any(t => changedTags.Contains(t)))
-            {
-                // Re-queue: remove the stale review
-                state.Scenarios.Remove(scenario.Name);
-                queue.Add(scenario);
-                continue;
-            }
-
-            // Reviewed and no relevant code changed — skip (it's out of queue)
-        }
-
-        return queue;
+            files.Add(Path.GetFileName(line.Trim()));
+        return files;
     }
 
     /// <summary>
@@ -180,27 +195,6 @@ public class ReviewQueue
         }
 
         return (passed, failed, skipped);
-    }
-
-    /// <summary>
-    /// Prints queue status summary.
-    /// </summary>
-    public void PrintStatus(List<ScenarioDef> allScenarios, ReviewState state)
-    {
-        var queue = ComputeQueue(allScenarios, state);
-        int passed = state.Scenarios.Values.Count(s => s.Status == "pass");
-        int failed = state.Scenarios.Values.Count(s => s.Status == "fail");
-        int unreviewed = queue.Count;
-
-        Console.WriteLine($"Queue: {unreviewed} need review, {passed} passed, {failed} failed (of {allScenarios.Count} total)");
-
-        if (queue.Count > 0)
-        {
-            Console.WriteLine();
-            Console.WriteLine("Queued scenarios:");
-            foreach (var s in queue)
-                Console.WriteLine($"  - {s.Name} [{string.Join(", ", s.Tags)}]");
-        }
     }
 
     private static readonly JsonSerializerOptions JsonOpts = new()

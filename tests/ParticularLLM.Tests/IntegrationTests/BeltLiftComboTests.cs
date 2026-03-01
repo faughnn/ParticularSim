@@ -21,6 +21,7 @@ public class BeltLiftComboTests
     {
         // Rule 1: sand on belt gets carried to edge, falls off, settles below belt level
         var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand dropped above a two-segment right-moving belt should be carried to the belt end, fall off, and settle below belt level.";
         sim.Fill(0, 120, 128, 8, Materials.Stone);  // Floor
 
         var belts = new BeltManager(sim.World);
@@ -48,6 +49,7 @@ public class BeltLiftComboTests
     {
         // Rule 2: wall is impenetrable — sand rests on wall top surface
         var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand falling onto a wall should rest on the wall's top surface and not pass through it.";
         var walls = new WallManager(sim.World);
         walls.PlaceWall(32, 80);  // Wall block at (32,80)-(39,87)
         sim.Simulator.SetWallManager(walls);
@@ -71,6 +73,7 @@ public class BeltLiftComboTests
     {
         // Rule 3: full pipeline conserves every frame
         var sim = new SimulationFixture(256, 256);
+        sim.Description = "A belt chain feeding sand into a walled container should conserve all placed sand every frame across 2000 steps.";
         sim.Fill(0, 240, 256, 16, Materials.Stone);
 
         var belts = new BeltManager(sim.World);

@@ -28,6 +28,7 @@ public class PowderAirDragTests
         // Sand launched horizontally should eventually lose its horizontal velocity
         // and settle, rather than flying sideways forever.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand launched horizontally with vx=8 should lose its horizontal velocity to air drag and settle on the floor.";
         sim.Fill(0, 120, 128, 8, Materials.Stone); // Floor
 
         // Place sand with high horizontal velocity in open air
@@ -49,6 +50,7 @@ public class PowderAirDragTests
         // Without air drag, sand with vx=8 would fly 8 cells per frame forever.
         // With drag, the total horizontal displacement should be bounded.
         using var sim = new SimulationFixture(256, 128);
+        sim.Description = "Sand launched horizontally should have bounded total horizontal displacement due to air drag, not flying to the edge of the world.";
         sim.Fill(0, 120, 256, 8, Materials.Stone); // Wide floor
 
         sim.SetWithVelocity(30, 60, Materials.Sand, 8, 0);
@@ -78,6 +80,7 @@ public class PowderAirDragTests
         // Ash (airDrag=50) should lose horizontal velocity faster than sand (airDrag=25).
         // Both launched with same horizontal velocity, ash should travel less far.
         using var sim = new SimulationFixture(256, 128);
+        sim.Description = "Ash with higher air drag should travel less far horizontally than sand when both are launched at the same speed.";
         sim.Fill(0, 120, 256, 8, Materials.Stone);
 
         // Launch both with same horizontal velocity, same height
@@ -111,6 +114,7 @@ public class PowderAirDragTests
         // (ash=26, coal=40) — close enough that drag difference dominates.
         // Both launched horizontally at the same speed.
         using var sim = new SimulationFixture(256, 128);
+        sim.Description = "Ash (airDrag=50) launched at the same speed as coal (airDrag=25) should travel less far, since higher drag decays velocity faster.";
         sim.Fill(0, 120, 256, 8, Materials.Stone);
 
         // Place at different Y to avoid interaction, same vx
@@ -142,6 +146,7 @@ public class PowderAirDragTests
         // Sand sitting on a surface with no horizontal velocity should not be
         // affected by drag. It should remain stationary.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Sand resting on a surface with zero horizontal velocity should not drift, since air drag only acts on moving particles.";
         sim.Fill(0, 50, 64, 14, Materials.Stone);
         sim.Set(32, 49, Materials.Sand);
 
@@ -162,6 +167,7 @@ public class PowderAirDragTests
     {
         // Multiple powder types with horizontal velocity should all be conserved.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "5 each of sand, ash, and coal launched horizontally at varying speeds should all be conserved through air drag operations.";
         sim.Fill(0, 120, 128, 8, Materials.Stone);
 
         // Launch various powders horizontally
@@ -188,6 +194,7 @@ public class PowderAirDragTests
         // Sand dropped from height onto a surface should scatter and form
         // a bounded pile — not fly to the edges of the world.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "10 sand grains dropped from height should scatter on impact but form a bounded pile due to air drag, not spread to the world edges.";
         sim.Fill(0, 100, 128, 28, Materials.Stone);
 
         // Drop a column of sand from height to generate high-speed impact scatter
@@ -221,6 +228,7 @@ public class PowderAirDragTests
         // Two sand grains at the same height — one with vx=0, one with vx=8 —
         // should reach the floor at approximately the same time.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Two sand grains at the same height, one stationary and one with high horizontal velocity, should reach the floor at approximately the same time since drag only affects horizontal speed.";
         sim.Fill(0, 120, 128, 8, Materials.Stone);
 
         sim.SetWithVelocity(30, 60, Materials.Sand, 0, 0);  // No horizontal velocity

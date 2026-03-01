@@ -163,8 +163,10 @@ public class CheckerboardGroupTests
         // Flat and 4-pass orderings are both valid but produce different states.
         // What matters: both conserve materials and are individually deterministic.
         var sim1 = new SimulationFixture(256, 256);
+        sim1.Description = "Sand and water in flat processing mode should be fully conserved after 200 frames across multiple chunks.";
         sim1.Simulator.UseFourPassGrouping = false;
         var sim2 = new SimulationFixture(256, 256);
+        sim2.Description = "Sand and water in 4-pass processing mode should be fully conserved after 200 frames across multiple chunks.";
         sim2.Simulator.UseFourPassGrouping = true;
 
         // Same setup in both
@@ -194,6 +196,7 @@ public class CheckerboardGroupTests
     {
         // Large multi-chunk world with 4-pass mode
         var sim = new SimulationFixture(256, 256);
+        sim.Description = "Sand and water scattered across many chunks in 4-pass mode should all be conserved after 500 frames.";
         sim.Simulator.UseFourPassGrouping = true;
         sim.Fill(0, 240, 256, 16, Materials.Stone);
 
@@ -241,6 +244,7 @@ public class CheckerboardGroupTests
     {
         // Sand placed at chunk boundary should fall correctly in 4-pass mode
         var sim = new SimulationFixture(192, 128); // 3x2 chunks
+        sim.Description = "Sand placed at chunk boundary columns (x=63, 64, 127, 128) should all be conserved after falling in 4-pass mode.";
         sim.Simulator.UseFourPassGrouping = true;
         sim.Fill(0, 120, 192, 8, Materials.Stone);
 
@@ -277,6 +281,7 @@ public class CheckerboardGroupTests
     private static byte[] RunWithMode(bool useFourPass)
     {
         var sim = new SimulationFixture(256, 256);
+        sim.Description = $"Sand and water across multiple chunks should produce byte-identical cell state on repeated runs in {(useFourPass ? "4-pass" : "flat")} mode.";
         sim.Simulator.UseFourPassGrouping = useFourPass;
         sim.Fill(0, 240, 256, 16, Materials.Stone);
 

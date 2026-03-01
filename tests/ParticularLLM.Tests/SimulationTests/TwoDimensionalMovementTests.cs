@@ -35,6 +35,7 @@ public class TwoDimensionalMovementTests
     {
         // Sand (restitution=77, ~30%) should settle faster than the old 70% retention.
         using var sim = new SimulationFixture(64, 128);
+        sim.Description = "Sand with low restitution (~30%) dropped from height should settle near the stone floor without excessive bouncing.";
         sim.Fill(0, 120, 64, 8, Materials.Stone);
         sim.Set(32, 10, Materials.Sand);
 
@@ -55,6 +56,7 @@ public class TwoDimensionalMovementTests
         // Sand falling from great height should scatter on impact (restitution > 0).
         // With velocity ~8+ at impact, diagonal speed should be > 0.
         using var sim = new SimulationFixture(128, 256);
+        sim.Description = "Sand dropped from a great height should scatter on impact due to restitution and settle near the floor.";
         sim.Fill(0, 240, 128, 16, Materials.Stone);
         sim.Set(64, 0, Materials.Sand);
 
@@ -76,6 +78,7 @@ public class TwoDimensionalMovementTests
         // Dirt (restitution=102, ~40%) retains more energy on collision than sand (77, ~30%).
         // Both should conserve material.
         using var sim = new SimulationFixture(128, 256);
+        sim.Description = "Dirt and sand dropped from height with different restitution values should both be conserved through collision.";
         sim.Fill(0, 240, 128, 16, Materials.Stone);
         sim.Set(64, 0, Materials.Sand);
         sim.Set(32, 0, Materials.Dirt);
@@ -92,6 +95,7 @@ public class TwoDimensionalMovementTests
         // A powder cell with both velocityX and velocityY should follow a diagonal
         // path, not an L-shaped path. The Bresenham trace handles arbitrary angles.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand given equal horizontal and vertical velocity should move diagonally via Bresenham trace, not in an L-shape.";
         sim.Fill(0, 120, 128, 8, Materials.Stone);
 
         // Place sand with both horizontal and vertical velocity
@@ -114,6 +118,7 @@ public class TwoDimensionalMovementTests
     {
         // A velocity vector of (5, 1) should trace a shallow line.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand with mostly-horizontal velocity (5,1) should trace a shallow diagonal, moving more in X than Y.";
         sim.Fill(0, 120, 128, 8, Materials.Stone);
 
         // Set sand with mostly-horizontal velocity and a bit of downward
@@ -139,6 +144,7 @@ public class TwoDimensionalMovementTests
         // Material exiting a lift should arc: rising vertically while moving laterally.
         // After enough frames, the X position should change (horizontal displacement).
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand exiting a 3-block tall lift should arc laterally away from the lift column due to combined vertical and horizontal velocity.";
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(48, 72);
         lifts.PlaceLift(48, 80);
@@ -167,6 +173,7 @@ public class TwoDimensionalMovementTests
         // Multiple materials with different restitution values should all be conserved
         // through trace, collision, and at-rest phases.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Rows of sand and dirt dropped from different heights should all be conserved through trace, collision, and settling.";
         sim.Fill(0, 120, 128, 8, Materials.Stone);
 
         // Place sand and dirt at different heights
@@ -188,6 +195,7 @@ public class TwoDimensionalMovementTests
     {
         // Stress test: many cells colliding with restitution active.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "A wide alternating row of 88 sand and dirt cells dropped from height; all must be conserved through restitution collisions.";
         sim.Fill(0, 120, 128, 8, Materials.Stone);
 
         // Wide band of mixed materials dropping from height
@@ -211,6 +219,7 @@ public class TwoDimensionalMovementTests
         // A material with restitution=0 should not bounce at all.
         // We use IronOre (defaults have restitution=0) for this.
         using var sim = new SimulationFixture(64, 128);
+        sim.Description = "IronOre with zero restitution dropped from height should settle near the floor without bouncing.";
         sim.Fill(0, 120, 64, 8, Materials.Stone);
 
         // IronOre is powder with default restitution=0
@@ -233,6 +242,7 @@ public class TwoDimensionalMovementTests
     {
         // Water (restitution=102, ~40%) should splash when dropped from height.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "A column of water dropped from height should splash on impact and conserve all 5 water cells.";
         sim.Fill(0, 120, 128, 8, Materials.Stone);
 
         // Drop a column of water from height
@@ -253,6 +263,7 @@ public class TwoDimensionalMovementTests
         // Density displacement (heavy sinks below light) should still work
         // with the new restitution system.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Oil, water, and sand layered in wrong order inside a container should sort by density: sand at bottom, oil on top.";
         sim.Fill(20, 40, 1, 24, Materials.Stone);
         sim.Fill(43, 40, 1, 24, Materials.Stone);
         sim.Fill(20, 63, 24, 1, Materials.Stone);

@@ -24,6 +24,7 @@ public class InteractionMatrixTests
     public void Piston_PushesSand_SandFalls()
     {
         var sim = new SimulationFixture(128, 128);
+        sim.Description = "A piston pushes sand off a stone ledge; the sand should fall below ledge height under gravity while conserving all material.";
         var clusterManager = new ClusterManager();
         var pistonManager = new PistonManager();
         pistonManager.SetClusterManager(clusterManager);
@@ -60,6 +61,7 @@ public class InteractionMatrixTests
     public void Piston_PushesSand_OntoBelt()
     {
         var sim = new SimulationFixture(128, 128);
+        sim.Description = "A piston pushes sand onto a right-moving belt chain; the belt should transport some sand away from the piston area.";
         var clusterManager = new ClusterManager();
         var pistonManager = new PistonManager();
         pistonManager.SetClusterManager(clusterManager);
@@ -100,6 +102,7 @@ public class InteractionMatrixTests
     public void Piston_PushesSand_IntoLift()
     {
         var sim = new SimulationFixture(128, 128);
+        sim.Description = "A piston pushes sand into a tall lift column; the sand should be conserved after interacting with both structures.";
         var clusterManager = new ClusterManager();
         var pistonManager = new PistonManager();
         pistonManager.SetClusterManager(clusterManager);
@@ -135,6 +138,7 @@ public class InteractionMatrixTests
     public void Piston_PushesSand_BlockedByWall()
     {
         var sim = new SimulationFixture(128, 128);
+        sim.Description = "A wall blocks the piston exit so sand cannot pass through; material is conserved every frame despite the stall.";
         var clusterManager = new ClusterManager();
         var pistonManager = new PistonManager();
         pistonManager.SetClusterManager(clusterManager);
@@ -178,6 +182,7 @@ public class InteractionMatrixTests
     public void Piston_PushesSand_IntoFurnace()
     {
         var sim = new SimulationFixture(128, 128);
+        sim.Description = "A piston pushes sand toward a furnace chamber opening; all 3 sand cells should be conserved after interacting with piston and furnace.";
         var clusterManager = new ClusterManager();
         var pistonManager = new PistonManager();
         pistonManager.SetClusterManager(clusterManager);
@@ -223,6 +228,7 @@ public class InteractionMatrixTests
     public void Cluster_LandsOnWall_StopsAbove()
     {
         var sim = new SimulationFixture(64, 64);
+        sim.Description = "A falling cluster should land on a wall block and stop above it, not passing through the wall.";
         var clusterManager = new ClusterManager();
         sim.Simulator.SetClusterManager(clusterManager);
 
@@ -254,6 +260,7 @@ public class InteractionMatrixTests
     public void Cluster_OverBelt_BeltCannotMoveCluster()
     {
         var sim = new SimulationFixture(64, 64);
+        sim.Description = "A cluster resting on a belt surface should not be moved by the belt, since belts cannot transport cluster pixels.";
         var clusterManager = new ClusterManager();
         sim.Simulator.SetClusterManager(clusterManager);
 
@@ -297,6 +304,7 @@ public class InteractionMatrixTests
     public void Cluster_DisplacesSand_SandFallsToFloor()
     {
         var sim = new SimulationFixture(64, 64);
+        sim.Description = "A cluster falling through a column of sand should displace all sand cells without destroying any; sand count stays constant every frame.";
         var clusterManager = new ClusterManager();
         sim.Simulator.SetClusterManager(clusterManager);
 
@@ -340,6 +348,7 @@ public class InteractionMatrixTests
     public void Water_OnBelt_Transported()
     {
         var sim = new SimulationFixture(128, 64);
+        sim.Description = "Water placed on a right-moving belt chain should be transported away from its starting position.";
         var belts = new BeltManager(sim.World);
         sim.Simulator.SetBeltManager(belts);
 
@@ -365,6 +374,7 @@ public class InteractionMatrixTests
     public void Water_InLift_PushedUp()
     {
         var sim = new SimulationFixture(128, 128);
+        sim.Description = "Water at the bottom of a tall lift column should be pushed upward above its starting position.";
         var lifts = new LiftManager(sim.World);
         sim.Simulator.SetLiftManager(lifts);
 
@@ -392,6 +402,7 @@ public class InteractionMatrixTests
     public void Water_BlockedByWall()
     {
         var sim = new SimulationFixture(64, 64);
+        sim.Description = "Water spreading on a floor should be blocked by a wall and not pass through to the other side.";
         var walls = new WallManager(sim.World);
         sim.Simulator.SetWallManager(walls);
 
@@ -424,6 +435,7 @@ public class InteractionMatrixTests
     {
         // Lift-assisted steam
         var simLift = new SimulationFixture(64, 128);
+        simLift.Description = "Steam inside a lift column should rise at least as fast as free-rising steam due to combined lift force and buoyancy.";
         var lifts = new LiftManager(simLift.World);
         simLift.Simulator.SetLiftManager(lifts);
         for (int y = 16; y < 96; y += 8)
@@ -432,6 +444,7 @@ public class InteractionMatrixTests
 
         // Free steam (no lift)
         var simFree = new SimulationFixture(64, 128);
+        simFree.Description = "Steam rising freely without a lift, used as a baseline comparison for lift-assisted steam speed.";
         simFree.Set(26, 80, Materials.Steam);
 
         int steps = 30;
@@ -463,6 +476,7 @@ public class InteractionMatrixTests
     public void Gas_BlockedByWall()
     {
         var sim = new SimulationFixture(64, 64);
+        sim.Description = "Steam rising below a wall ceiling should accumulate below the wall and not pass through it.";
         var walls = new WallManager(sim.World);
         sim.Simulator.SetWallManager(walls);
 
@@ -491,6 +505,7 @@ public class InteractionMatrixTests
     public void Gas_OnBelt_Unaffected()
     {
         var sim = new SimulationFixture(64, 64);
+        sim.Description = "Steam placed at a belt surface should rise upward due to buoyancy rather than being transported by the belt.";
         var belts = new BeltManager(sim.World);
         sim.Simulator.SetBeltManager(belts);
 
@@ -525,6 +540,7 @@ public class InteractionMatrixTests
     public void Melting_ResetsVelocity_MaterialRefalls()
     {
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "IronOre at melt temperature with downward velocity should melt, reset velocity, and the resulting material should fall under gravity to the floor.";
         sim.Simulator.EnableHeatTransfer = true;
         sim.Fill(0, 63, 64, 1, Materials.Stone); // Floor
 
@@ -574,6 +590,7 @@ public class InteractionMatrixTests
     public void Boiling_GivesUpwardVelocity()
     {
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Water heated past its boiling point should become steam with upward velocity and rise above its starting position.";
         sim.Simulator.EnableHeatTransfer = true;
 
         // Set water well above boiling point so the resulting steam stays above
@@ -613,6 +630,7 @@ public class InteractionMatrixTests
     public void Lift_PushesUp_WallBlocksAbove()
     {
         var sim = new SimulationFixture(64, 128);
+        sim.Description = "Sand lifted upward through a lift column should be blocked by a wall above the lift exit and not pass through it.";
         var lifts = new LiftManager(sim.World);
         sim.Simulator.SetLiftManager(lifts);
 
@@ -652,6 +670,7 @@ public class InteractionMatrixTests
     public void DensitySorting_OnBelt_PreservedDuringTransport()
     {
         var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand and water transported by a belt into a walled container should settle with sand below water, preserving density layering.";
         var belts = new BeltManager(sim.World);
         sim.Simulator.SetBeltManager(belts);
 

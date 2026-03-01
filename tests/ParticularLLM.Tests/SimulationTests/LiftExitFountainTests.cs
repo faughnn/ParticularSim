@@ -45,8 +45,9 @@ public class LiftExitFountainTests
     public void Lift_NetUpwardForce_FirstFrame()
     {
         // Net force = gravity(17) - liftForce(20) = -3
-        // Frame 1: fracY = 0 + (-3) = -3 → underflow → velocityY = -1 immediately
+        // Frame 1: fracY = 0 + (-3) = -3 -> underflow -> velocityY = -1 immediately
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand placed inside a lift should gain upward velocity (-1) on the very first frame due to net upward force.";
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(32, 80); // rows 80-87
         sim.Simulator.SetLiftManager(lifts);
@@ -76,6 +77,7 @@ public class LiftExitFountainTests
         // Sand placed at bottom of lift should rise to the top and exit via lateral force.
         // After exiting, sand moves horizontally and then falls in open space.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand at the bottom of a 3-block tall lift should rise to the top, exit horizontally via lateral force, and settle on the floor.";
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(32, 64); // rows 64-71
         lifts.PlaceLift(32, 72); // rows 72-79
@@ -114,10 +116,11 @@ public class LiftExitFountainTests
     {
         // At exit row, lateralForceValue is applied to velocityFracX.
         // For localX=0: lateralSign = (2*0-7) = -7, force = -7*120 = -840
-        // newFracX = 0 + (-840) = -840 → underflows multiple times
+        // newFracX = 0 + (-840) = -840 -> underflows multiple times
         // For localX=7: lateralSign = (2*7-7) = +7, force = +7*120 = +840
         // These are large forces that should give significant velocityX.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand at the leftmost position of a lift exit row should receive negative horizontal velocity pushing it leftward.";
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(32, 64); // rows 64-71
         sim.Simulator.SetLiftManager(lifts);
@@ -148,6 +151,7 @@ public class LiftExitFountainTests
         // BUG: Currently, velocityX is set but never consumed during free-fall.
         // Material should NOT fall straight back into the lift.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand exiting a 4-block tall lift should spread horizontally due to lateral force, not fall straight back into the lift.";
         var lifts = new LiftManager(sim.World);
         // 4-block tall lift
         lifts.PlaceLift(48, 64);
@@ -191,6 +195,7 @@ public class LiftExitFountainTests
         // Material should NOT bounce up and down inside a lift forever.
         // After enough frames, material should exit the lift and settle.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand in a 3-block tall lift should not oscillate indefinitely; it should exit and settle on the stone floor.";
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(48, 72);
         lifts.PlaceLift(48, 80);
@@ -220,6 +225,7 @@ public class LiftExitFountainTests
         // The fountain should push material left on the left side and right on the right side.
         // lateralSign for localX=0..3 is negative (left), for localX=4..7 is positive (right).
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand on the left side of the lift should be pushed left, and sand on the right side pushed right, creating a symmetric fountain.";
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(48, 72);
         lifts.PlaceLift(48, 80);
@@ -256,9 +262,10 @@ public class LiftExitFountainTests
     public void Lift_VelocityX_ConsumedDuringRise()
     {
         // When material rises with both velocityY < 0 and velocityX != 0,
-        // the horizontal velocity should be applied — material should move diagonally up,
+        // the horizontal velocity should be applied -- material should move diagonally up,
         // not straight up.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand exiting the leftmost position of a lift should consume horizontal velocity during its rise, moving left of the lift column.";
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(48, 72);
         lifts.PlaceLift(48, 80);
@@ -288,6 +295,7 @@ public class LiftExitFountainTests
     {
         // Multiple sand grains should all eventually exit the lift.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Five sand grains placed at various heights in a 4-block tall lift should all exit and settle on the stone floor.";
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(48, 64);
         lifts.PlaceLift(48, 72);
@@ -323,6 +331,7 @@ public class LiftExitFountainTests
     {
         // Water should exit the lift and spread horizontally on landing.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Water placed inside a 3-block tall lift should exit and reach the floor area, not remain stuck inside.";
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(48, 72);
         lifts.PlaceLift(48, 80);
@@ -351,6 +360,7 @@ public class LiftExitFountainTests
     {
         // After sand passes through a lift, all lift tiles should be restored.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "After sand passes through a single-block lift, all 64 lift tiles in the 8x8 block should be fully restored.";
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(48, 80); // rows 80-87
         sim.Simulator.SetLiftManager(lifts);
@@ -385,6 +395,7 @@ public class LiftExitFountainTests
     {
         // Pour many sand grains through a lift. All should be conserved.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "An 8x4 block of sand falling into and rising through a 4-block tall lift should be fully conserved over 2000 frames.";
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(48, 64);
         lifts.PlaceLift(48, 72);

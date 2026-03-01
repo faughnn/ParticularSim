@@ -19,6 +19,7 @@ public class BeltSimulationTests
     public void Belt_MovesSandRight()
     {
         var sim = new SimulationFixture(128, 64);
+        sim.Description = "Sand placed on a right-moving belt surface should be transported rightward from its starting position.";
         var belts = new BeltManager(sim.World);
         belts.PlaceBelt(16, 40, 1); // Right-moving belt at (16,40)-(23,47)
         sim.Simulator.SetBeltManager(belts);
@@ -45,6 +46,7 @@ public class BeltSimulationTests
     public void Belt_MovesSandLeft()
     {
         var sim = new SimulationFixture(128, 64);
+        sim.Description = "Sand placed on a left-moving belt surface should be transported leftward from its starting position.";
         var belts = new BeltManager(sim.World);
         belts.PlaceBelt(40, 40, -1); // Left-moving belt at (40,40)-(47,47)
         sim.Simulator.SetBeltManager(belts);
@@ -63,6 +65,7 @@ public class BeltSimulationTests
     public void Belt_MovesWater()
     {
         var sim = new SimulationFixture(128, 64);
+        sim.Description = "Water placed on a right-moving belt surface should be transported away from its starting position.";
         var belts = new BeltManager(sim.World);
         belts.PlaceBelt(16, 40, 1); // Right-moving belt at (16,40)-(23,47)
         sim.Simulator.SetBeltManager(belts);
@@ -83,6 +86,7 @@ public class BeltSimulationTests
     public void Belt_MaterialConservation()
     {
         var sim = new SimulationFixture(128, 64);
+        sim.Description = "Eight sand cells on a belt surface should all be conserved after 200 frames of belt transport and gravity.";
         var belts = new BeltManager(sim.World);
         belts.PlaceBelt(16, 40, 1);
         sim.Simulator.SetBeltManager(belts);
@@ -104,6 +108,7 @@ public class BeltSimulationTests
     {
         // Sand below the belt surface (inside the belt) should not be moved
         var sim = new SimulationFixture(128, 64);
+        sim.Description = "Sand dropped above a belt should fall to the surface and be transported away; it should not remain at its original x-column.";
         var belts = new BeltManager(sim.World);
         belts.PlaceBelt(16, 40, 1); // Belt occupies rows 40-47
         sim.Simulator.SetBeltManager(belts);
@@ -131,6 +136,7 @@ public class BeltSimulationTests
         // Belt speed is 3 frames per move (DefaultSpeed = 3)
         // After exactly 3 frames, sand should have moved at most 1 cell
         var sim = new SimulationFixture(128, 64);
+        sim.Description = "After exactly 3 frames at DefaultSpeed=3, the belt should have activated once and the single sand cell should still exist.";
         var belts = new BeltManager(sim.World);
         belts.PlaceBelt(16, 40, 1);
         sim.Simulator.SetBeltManager(belts);

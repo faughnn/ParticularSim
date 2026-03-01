@@ -22,6 +22,7 @@ public class LiftSimulationTests
         // Create a tall lift column (4 blocks = 32 cells high)
         // The lift applies a net upward force that moves sand upward at ~1 cell/frame
         var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand placed inside a 4-block lift column should rise significantly upward from its starting position due to net upward lift force.";
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(32, 40);  // rows 40-47
         lifts.PlaceLift(32, 48);  // rows 48-55
@@ -59,6 +60,7 @@ public class LiftSimulationTests
     {
         // Create a lift column. Water in the lift zone should rise upward.
         var sim = new SimulationFixture(128, 128);
+        sim.Description = "Water placed inside a 3-block lift column should be pushed upward from its starting position.";
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(32, 80);  // rows 80-87
         lifts.PlaceLift(32, 88);  // rows 88-95
@@ -91,6 +93,7 @@ public class LiftSimulationTests
     public void Lift_MaterialConservation()
     {
         var sim = new SimulationFixture(128, 128);
+        sim.Description = "Multiple sand cells placed in a lift column should all be conserved after 1000 frames of lift transport and gravity.";
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(32, 80);
         lifts.PlaceLift(32, 88);
@@ -115,6 +118,7 @@ public class LiftSimulationTests
         // Sand dropped above a lift should fall INTO the lift zone
         // because lift material is passable
         var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand dropped above a lift zone should fall through the passable lift material and enter the lift zone.";
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(32, 64);  // rows 64-71
         sim.Simulator.SetLiftManager(lifts);
@@ -131,6 +135,7 @@ public class LiftSimulationTests
     {
         // When a cell leaves a lift zone, the lift material should be restored
         var sim = new SimulationFixture(128, 128);
+        sim.Description = "After sand moves out of a lift zone cell, the lift material should be restored at that position.";
         var lifts = new LiftManager(sim.World);
         lifts.PlaceLift(32, 80);
         lifts.PlaceLift(32, 88);

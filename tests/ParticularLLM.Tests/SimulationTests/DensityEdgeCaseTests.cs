@@ -34,6 +34,7 @@ public class DensityEdgeCaseTests
     {
         // Two sand grains at same density should not displace each other.
         using var sim = new SimulationFixture();
+        sim.Description = "Two vertically stacked sand grains should not displace each other since they have equal density; both should be conserved.";
         sim.Fill(0, 63, 64, 1, Materials.Stone);
 
         // Stack two sand grains vertically
@@ -50,6 +51,7 @@ public class DensityEdgeCaseTests
     public void EqualDensity_WaterDoesNotDisplaceWater()
     {
         using var sim = new SimulationFixture();
+        sim.Description = "15 water cells in a block should not displace each other since they share the same density; all should be conserved.";
         sim.Fill(0, 63, 64, 1, Materials.Stone);
         sim.Fill(30, 60, 5, 3, Materials.Water); // 15 water cells
 
@@ -66,6 +68,7 @@ public class DensityEdgeCaseTests
     {
         // Sand (128) > Water (64) > Oil (48): should layer with sand at bottom, oil on top.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Sand, water, and oil placed in reverse density order should sort by density: sand sinks to the bottom, water in the middle, oil floats on top.";
 
         // Container
         sim.Fill(20, 50, 1, 14, Materials.Stone); // Left wall
@@ -101,6 +104,7 @@ public class DensityEdgeCaseTests
         // water sinks, oil rises. This should work even when starting at rest
         // because gravity pulls liquids down even at velocity 0.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Oil placed below water in a container should float upward as the heavier water displaces it downward.";
 
         // Container
         sim.Fill(28, 40, 1, 24, Materials.Stone);
@@ -129,6 +133,7 @@ public class DensityEdgeCaseTests
     public void DensityLayering_SandOverWater_InContainer()
     {
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Sand placed above water in a container should settle below the water layer, satisfying the density layering invariant.";
 
         sim.Fill(20, 40, 1, 24, Materials.Stone);
         sim.Fill(43, 40, 1, 24, Materials.Stone);
@@ -155,6 +160,7 @@ public class DensityEdgeCaseTests
     {
         // Large block of sand falling into large pool of water.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "A large block of sand falling into a large pool of water should displace through it with all sand and water cells conserved.";
 
         sim.Fill(0, 120, 128, 8, Materials.Stone);
 
@@ -190,6 +196,7 @@ public class DensityEdgeCaseTests
     {
         // Stone (static, density 255) blocks everything.
         using var sim = new SimulationFixture();
+        sim.Description = "Sand and water falling onto a stone floor should both be blocked; nothing should pass through the static stone layer.";
         sim.Fill(0, 40, 64, 1, Materials.Stone);
         sim.Set(32, 30, Materials.Sand);
         sim.Set(33, 30, Materials.Water);
@@ -207,6 +214,7 @@ public class DensityEdgeCaseTests
     {
         // Wall (static, density 255) blocks everything.
         using var sim = new SimulationFixture();
+        sim.Description = "Sand falling onto a wall material floor should be blocked; wall is static and prevents all movement through it.";
         sim.Fill(0, 40, 64, 1, Materials.Wall);
         sim.Fill(0, 63, 64, 1, Materials.Stone);
         sim.Set(32, 30, Materials.Sand);
@@ -227,6 +235,7 @@ public class DensityEdgeCaseTests
         // when a cell exits, but temporarily removes them when a cell enters).
         // We only check that sand count is conserved.
         using var sim = new SimulationFixture(128, 64);
+        sim.Description = "Sand falling through a lift (passable static material) should pass through it rather than being blocked, with sand count conserved.";
 
         // Place a lift
         var liftMgr = new LiftManager(sim.World);
@@ -250,6 +259,7 @@ public class DensityEdgeCaseTests
     {
         // Dirt (density 140) > Water (density 64), so dirt sinks.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Dirt dropped into a water pool should sink through it via density displacement, with both materials conserved.";
 
         sim.Fill(0, 63, 64, 1, Materials.Stone);
         sim.Fill(30, 55, 5, 8, Materials.Water); // 40 water cells
@@ -268,6 +278,7 @@ public class DensityEdgeCaseTests
         // Dirt (density 140) > Sand (density 128), so dirt CAN displace sand.
         // This is a correct behavior test, not an error.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Dirt dropped onto a sand block can displace sand since dirt is slightly denser; both materials should be conserved.";
 
         sim.Fill(0, 63, 64, 1, Materials.Stone);
         sim.Fill(30, 58, 5, 5, Materials.Sand); // 25 sand
@@ -287,6 +298,7 @@ public class DensityEdgeCaseTests
     {
         // Sand, water, oil, and steam in the same world.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "50 cells each of sand, water, oil, and steam interacting in the same world should all be individually conserved.";
 
         sim.Fill(0, 120, 128, 8, Materials.Stone);
 

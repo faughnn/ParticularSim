@@ -35,6 +35,7 @@ public class FractionalGravityTests
         // After 1 frame: fracY = 0 + 17 = 17. No overflow, velocityY stays 0.
         // But sand still moves via Phase 3 slide.
         using var sim = new SimulationFixture();
+        sim.Description = "After one frame, sand's fractional gravity accumulator should be 17 with velocityY still at 0, since the accumulator has not yet overflowed.";
         sim.Set(32, 10, Materials.Sand);
 
         var counts = sim.SnapshotMaterialCounts();
@@ -53,6 +54,7 @@ public class FractionalGravityTests
         // After 10 frames: fracY = 10 * 17 = 170 (no overflow), velocityY still 0.
         // But sand has moved 10 cells down via diagonal slides.
         using var sim = new SimulationFixture();
+        sim.Description = "After 10 frames the accumulator should still be below overflow, but sand should have slid diagonally about 10 rows via Phase 3 movement.";
 
         sim.Fill(0, 63, 64, 1, Materials.Stone);
         sim.Set(32, 10, Materials.Sand);
@@ -77,6 +79,7 @@ public class FractionalGravityTests
         // velocityY should become 2.
         // We test that sand falls FURTHER in later frames (acceleration visible).
         using var sim = new SimulationFixture(64, 128);
+        sim.Description = "Sand falling in open space should accelerate over 50 frames as the fractional accumulator overflows repeatedly, moving more than 1 cell per frame.";
 
         sim.Fill(0, 127, 64, 1, Materials.Stone);
         sim.Set(32, 0, Materials.Sand);
@@ -112,6 +115,7 @@ public class FractionalGravityTests
         // With gravity=1, velocity grows by 1 each ~15 frames.
         // After 16 overflows (~240 frames), velocity should cap at 16.
         using var sim = new SimulationFixture(64, 512);
+        sim.Description = "Sand falling through a tall world should have its velocity capped at maxVelocity (16), preventing unbounded acceleration.";
 
         sim.Fill(0, 511, 64, 1, Materials.Stone);
         sim.Set(32, 0, Materials.Sand);
@@ -136,6 +140,7 @@ public class FractionalGravityTests
         // Before velocity > 0, sand still moves via Phase 3 diagonal slide.
         // It tries down-left or down-right each frame.
         using var sim = new SimulationFixture();
+        sim.Description = "Sand with zero velocity should still move one row downward on its first frame via the Phase 3 diagonal slide fallback.";
         sim.Set(32, 10, Materials.Sand);
 
         var counts = sim.SnapshotMaterialCounts();
@@ -154,6 +159,7 @@ public class FractionalGravityTests
         // In a 1-wide channel, diagonal slide fails but gravity still pulls down 1 cell/frame.
         // Even at velocity 0, sand should fall straight down immediately.
         using var sim = new SimulationFixture();
+        sim.Description = "Sand in a 1-wide walled channel should fall straight down via zero-velocity gravity pull each frame, then accelerate as the accumulator overflows.";
 
         sim.Fill(31, 0, 1, 64, Materials.Stone); // Wall left
         sim.Fill(33, 0, 1, 64, Materials.Stone); // Wall right
@@ -188,6 +194,7 @@ public class FractionalGravityTests
         // Sand falling in open space should cover more distance in later intervals
         // than in earlier intervals (acceleration, not constant speed).
         using var sim = new SimulationFixture(64, 256);
+        sim.Description = "Sand should cover more distance in later 20-frame intervals than earlier ones, demonstrating acceleration rather than constant speed.";
 
         sim.Fill(0, 255, 64, 1, Materials.Stone);
         sim.Set(32, 0, Materials.Sand);
@@ -224,6 +231,7 @@ public class FractionalGravityTests
         // (1 from zero-velocity gravity pull + 1 from velocity).
         // The key test: sand accelerates over time, proving the accumulator persists.
         using var sim = new SimulationFixture();
+        sim.Description = "Sand in a walled channel should fall at 1 cell/frame for the first 15 frames, then accelerate past that rate as the persistent accumulator overflows.";
 
         sim.Fill(31, 0, 1, 64, Materials.Stone);
         sim.Fill(33, 0, 1, 64, Materials.Stone);
@@ -261,6 +269,7 @@ public class FractionalGravityTests
         // When sand hits a surface after falling, its velocity is zeroed (or transferred to diagonal).
         // This means if it's placed again in the air after landing, it starts slow again.
         using var sim = new SimulationFixture();
+        sim.Description = "Sand that lands on a stone floor after falling should have its vertical velocity reset to zero upon settling.";
 
         sim.Fill(0, 40, 64, 1, Materials.Stone); // Floor
         sim.Set(32, 10, Materials.Sand);
@@ -285,6 +294,7 @@ public class FractionalGravityTests
         // When sand collides with velocityY > 1, 70% of velocity transfers to diagonal.
         // This creates the characteristic spreading behavior of poured sand.
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand dropped from a great height should transfer its vertical momentum to diagonal movement upon impact, landing near the floor.";
 
         sim.Fill(0, 100, 128, 1, Materials.Stone); // Floor
         sim.Set(64, 0, Materials.Sand);
@@ -308,6 +318,7 @@ public class FractionalGravityTests
     {
         // Multiple sand grains falling at different speeds should all be conserved.
         using var sim = new SimulationFixture(64, 128);
+        sim.Description = "10 sand grains placed at different heights falling at varying speeds should all be conserved after settling.";
 
         sim.Fill(0, 127, 64, 1, Materials.Stone);
 
@@ -327,6 +338,7 @@ public class FractionalGravityTests
         // Dirt and sand both use fractional gravity the same way.
         // Both should fall and be conserved.
         using var sim = new SimulationFixture(64, 128);
+        sim.Description = "Sand and dirt dropped from the same height should both fall and be conserved, since both use the same fractional gravity system.";
 
         sim.Fill(0, 127, 64, 1, Materials.Stone);
         sim.Set(30, 0, Materials.Sand);
@@ -346,6 +358,7 @@ public class FractionalGravityTests
     {
         // After enough frames, no powder should be floating with air below.
         using var sim = new SimulationFixture();
+        sim.Description = "24 sand grains dropped onto a stone floor should all settle with no powder floating above air in the final state.";
 
         sim.Fill(0, 60, 64, 4, Materials.Stone);
         for (int x = 20; x < 44; x++)

@@ -25,6 +25,7 @@ public class LiquidTests
     {
         // Rule 1: liquid falls to bottom row with no floor
         using var sim = new SimulationFixture();
+        sim.Description = "A single water cell should fall to the bottom row of the world when there are no obstacles.";
         sim.Set(32, 10, Materials.Water);
         var counts = sim.SnapshotMaterialCounts();
         sim.StepWithInvariants(200, counts);
@@ -37,6 +38,7 @@ public class LiquidTests
     {
         // Rule 3: single water cell lands on floor and doesn't stack vertically
         using var sim = new SimulationFixture();
+        sim.Description = "A single water cell dropped onto a stone floor should land on the row above the floor and not stack vertically.";
         sim.Fill(0, 63, 64, 1, Materials.Stone);
         sim.Set(32, 10, Materials.Water);
         var counts = sim.SnapshotMaterialCounts();
@@ -53,6 +55,7 @@ public class LiquidTests
     {
         // Rule 6: liquid fills available horizontal space within container walls
         using var sim = new SimulationFixture();
+        sim.Description = "10 water cells placed inside a walled container should spread to fill the available horizontal space, with all water remaining inside the container.";
         sim.Fill(20, 50, 1, 14, Materials.Stone);   // Left wall
         sim.Fill(43, 50, 1, 14, Materials.Stone);   // Right wall
         sim.Fill(20, 63, 24, 1, Materials.Stone);   // Floor
@@ -79,6 +82,7 @@ public class LiquidTests
     {
         // Rule 7: per-frame conservation with 140 water cells
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "140 water cells falling onto a stone floor should all be conserved with no material lost or duplicated on any frame.";
         sim.Fill(0, 120, 128, 8, Materials.Stone);
 
         int placed = 0;
@@ -101,6 +105,7 @@ public class LiquidTests
     {
         // Rule 1: after enough frames, liquid has fallen away from start
         using var sim = new SimulationFixture();
+        sim.Description = "A water cell should vacate its starting position after 30 frames of gravitational pull.";
         sim.Set(32, 10, Materials.Water);
         var counts = sim.SnapshotMaterialCounts();
         sim.StepWithInvariants(30, counts);
@@ -112,6 +117,7 @@ public class LiquidTests
     {
         // Rule 1: liquid stops above static blocking material
         using var sim = new SimulationFixture();
+        sim.Description = "Water falling onto a horizontal stone floor should come to rest on the row directly above the stone.";
         sim.Fill(0, 40, 64, 1, Materials.Stone);
         sim.Set(32, 10, Materials.Water);
         var counts = sim.SnapshotMaterialCounts();

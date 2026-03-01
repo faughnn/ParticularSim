@@ -37,6 +37,7 @@ public class HeatTransferTests
     {
         // A single hot stone cell should cool toward ambient over time.
         using var sim = new SimulationFixture(16, 16);
+        sim.Description = "A single hot stone cell at 100 degrees should cool toward ambient after one frame but not reach it instantly.";
         sim.Simulator.EnableHeatTransfer = true;
         sim.Set(8, 8, Materials.Stone);
         sim.SetTemperature(8, 8, 100);
@@ -56,6 +57,7 @@ public class HeatTransferTests
         // With AccumulatorThreshold=2048 and CoolingFactor=1, the last degree (21->20) takes
         // 2048 frames. 16000 frames is more than enough for full cooldown from 200°.
         using var sim = new SimulationFixture(16, 16);
+        sim.Description = "A hot stone cell at 200 degrees should eventually cool all the way to ambient temperature given enough frames.";
         sim.Simulator.EnableHeatTransfer = true;
         sim.Set(8, 8, Materials.Stone);
         sim.SetTemperature(8, 8, 200);
@@ -74,6 +76,7 @@ public class HeatTransferTests
         // With proportional cooling below ambient, accumulator gains (20-5)*1=15/frame.
         // After 137 frames: 15*137=2055 >= 2048, so 1 degree gained. Temp goes from 5 to 6.
         using var sim = new SimulationFixture(16, 16);
+        sim.Description = "A cold stone cell at 5 degrees should warm toward ambient temperature over 200 frames.";
         sim.Simulator.EnableHeatTransfer = true;
         sim.Set(8, 8, Materials.Stone);
         sim.SetTemperature(8, 8, 5);
@@ -91,6 +94,7 @@ public class HeatTransferTests
     {
         // Two adjacent conducting cells with different temperatures should exchange heat.
         using var sim = new SimulationFixture(16, 16);
+        sim.Description = "Two adjacent stone cells at 200 and 20 degrees should exchange heat: the hot one cools and the cold one warms.";
         sim.Simulator.EnableHeatTransfer = true;
         sim.Set(7, 8, Materials.Stone);
         sim.Set(8, 8, Materials.Stone);
@@ -114,6 +118,7 @@ public class HeatTransferTests
         // (which decays to ambient due to cooling).
         // With AccumulatorThreshold=2048 and CoolingFactor=1, last degree takes 2048 frames.
         using var sim = new SimulationFixture(16, 16);
+        sim.Description = "Two adjacent stone cells at 200 and 20 degrees should equilibrate and both reach ambient temperature over 16000 frames.";
         sim.Simulator.EnableHeatTransfer = true;
         sim.Set(7, 8, Materials.Stone);
         sim.Set(8, 8, Materials.Stone);
@@ -135,6 +140,7 @@ public class HeatTransferTests
     {
         // A hot cell surrounded by 4 conducting neighbors should heat all of them.
         using var sim = new SimulationFixture(16, 16);
+        sim.Description = "A hot stone cell at 200 degrees surrounded by four ambient stone neighbors should warm all four neighbors after one frame.";
         sim.Simulator.EnableHeatTransfer = true;
         // Center hot cell
         sim.Set(8, 8, Materials.Stone);
@@ -161,6 +167,7 @@ public class HeatTransferTests
     {
         // Sand (non-conducting) should keep its temperature unchanged.
         using var sim = new SimulationFixture(16, 16);
+        sim.Description = "Sand at 100 degrees on a stone floor should keep its temperature unchanged because sand does not conduct heat.";
         sim.Simulator.EnableHeatTransfer = true;
         // Place sand on stone floor so it doesn't fall
         sim.Fill(0, 15, 16, 1, Materials.Stone);
@@ -179,6 +186,7 @@ public class HeatTransferTests
     {
         // A non-conducting material between two conductors should block heat flow.
         using var sim = new SimulationFixture(16, 16);
+        sim.Description = "A non-conducting wall placed between a hot stone and a cold stone should prevent heat from reaching the cold stone.";
         sim.Simulator.EnableHeatTransfer = true;
         sim.Set(6, 8, Materials.Stone);
         sim.Set(7, 8, Materials.Wall);  // Wall is non-conducting
@@ -201,6 +209,7 @@ public class HeatTransferTests
         // Two hot cells equidistant from a cold cell should contribute equally.
         // This tests that double buffering prevents processing-order artifacts.
         using var sim = new SimulationFixture(16, 16);
+        sim.Description = "Two hot stone cells flanking a cold stone cell should contribute equally due to double buffering, resulting in symmetric cooling.";
         sim.Simulator.EnableHeatTransfer = true;
         sim.Set(7, 8, Materials.Stone);
         sim.Set(8, 8, Materials.Stone);
@@ -228,6 +237,7 @@ public class HeatTransferTests
     {
         // Temperature should never exceed 255 or go below 0.
         using var sim = new SimulationFixture(16, 16);
+        sim.Description = "A stone cell at maximum temperature (255) should remain clamped within the valid byte range after a step.";
         sim.Simulator.EnableHeatTransfer = true;
         sim.Set(8, 8, Materials.Stone);
         sim.SetTemperature(8, 8, 255);
@@ -246,6 +256,7 @@ public class HeatTransferTests
     {
         // Water has ConductsHeat flag, should participate in diffusion.
         using var sim = new SimulationFixture(16, 16);
+        sim.Description = "Water in a stone container with a heated wall should conduct heat, making water near the wall warmer than water far from it.";
         sim.Simulator.EnableHeatTransfer = true;
         // Container: stone box with hot water inside
         sim.Fill(4, 12, 8, 1, Materials.Stone);  // Floor
@@ -284,6 +295,7 @@ public class HeatTransferTests
         // Then proportional cooling: diff = 164 - 20 = 144, accum += 144*1 = 144
         // degrees = 144 / 2048 = 0, no cooling this frame. Final = 164.
         using var sim = new SimulationFixture(16, 16);
+        sim.Description = "A hot stone at 200 next to a cold stone at 20 should produce exactly 164 degrees after one frame, verifying the 25% conduction rate math.";
         sim.Simulator.EnableHeatTransfer = true;
         sim.Set(8, 8, Materials.Stone);
         sim.Set(9, 8, Materials.Stone);
@@ -304,6 +316,7 @@ public class HeatTransferTests
     {
         // When EnableHeatTransfer=false (default), temperatures should not change.
         using var sim = new SimulationFixture(16, 16);
+        sim.Description = "With heat transfer disabled (default), a hot stone cell at 200 degrees should not change temperature after 10 frames.";
         // Note: EnableHeatTransfer defaults to false
         sim.Set(8, 8, Materials.Stone);
         sim.SetTemperature(8, 8, 200);
@@ -327,6 +340,7 @@ public class HeatTransferTests
         //   After proportional cooling: diff = 25 - 20 = 5, accum += 5*1 = 5
         //   degrees = 5/2048 = 0, no cooling this frame. Final = 25.
         using var sim = new SimulationFixture(16, 16);
+        sim.Description = "An air cell surrounded by four hot stone cells at 255 should warm above ambient due to its slow 3% conduction rate.";
         sim.Simulator.EnableHeatTransfer = true;
         // 4 hot stone cells surrounding the air cell at (8,8)
         sim.Set(7, 8, Materials.Stone);
@@ -357,6 +371,7 @@ public class HeatTransferTests
         // Setup 1: Stone chain insulated by walls
         // Layout (y=7,8,9): wall row, stone chain, wall row
         using var sim1 = new SimulationFixture(16, 16);
+        sim1.Description = "A stone chain insulated by walls with a continuously heated source; heat should propagate quickly along stone.";
         sim1.Simulator.EnableHeatTransfer = true;
         for (int x = 4; x <= 10; x++)
         {
@@ -372,6 +387,7 @@ public class HeatTransferTests
 
         // Setup 2: Stone-Air-Stone chain insulated by walls
         using var sim2 = new SimulationFixture(16, 16);
+        sim2.Description = "A stone-air-stone chain insulated by walls; air gap should slow heat propagation compared to a solid stone chain.";
         sim2.Simulator.EnableHeatTransfer = true;
         for (int x = 4; x <= 10; x++)
         {
@@ -411,6 +427,7 @@ public class HeatTransferTests
         //   At 200: accumulator += (200-20)*1 = 180/frame, needs ~11 frames per degree
         //   At 50:  accumulator += (50-20)*1 = 30/frame, needs ~68 frames per degree
         using var sim = new SimulationFixture(16, 16);
+        sim.Description = "A stone at 200 degrees should lose more temperature over 100 frames than a stone at 50 degrees, verifying proportional cooling.";
         sim.Simulator.EnableHeatTransfer = true;
 
         sim.Set(4, 8, Materials.Stone);

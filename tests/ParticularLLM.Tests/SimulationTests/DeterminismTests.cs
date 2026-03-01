@@ -60,6 +60,7 @@ public class DeterminismTests
     private static byte[] RunScenario()
     {
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "Sand and water blocks dropped onto a stone floor should produce byte-identical final cell state on every run.";
         sim.Fill(0, 120, 128, 8, Materials.Stone);
 
         for (int x = 30; x < 50; x++)
@@ -77,6 +78,7 @@ public class DeterminismTests
     private static byte[] RunComplexScenario()
     {
         using var sim = new SimulationFixture(128, 128);
+        sim.Description = "A complex scene with stone barriers, alternating sand/water layers, and steam should produce byte-identical final state on every run.";
         sim.Fill(0, 120, 128, 8, Materials.Stone);
         sim.Fill(30, 100, 1, 20, Materials.Stone);
         sim.Fill(60, 80, 30, 1, Materials.Stone);

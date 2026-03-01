@@ -256,6 +256,7 @@ public class FurnaceTests
     {
         // Block at (0,0) facing Right emits heat to x=8, y=0..7
         using var sim = new SimulationFixture(32, 32);
+        sim.Description = "A furnace block facing right should heat a stone cell placed at its emitting edge above ambient temperature.";
         sim.Simulator.EnableHeatTransfer = true;
         var manager = new FurnaceBlockManager(sim.World);
         sim.Simulator.SetFurnaceManager(manager);
@@ -280,6 +281,7 @@ public class FurnaceTests
         // Block at (8,8) facing Right emits to x=16, NOT to x=7 (left side)
         // Disable heat transfer to isolate direct emission from conduction
         using var sim = new SimulationFixture(32, 32);
+        sim.Description = "A furnace block facing right should not directly heat a stone cell on its back side (left) when heat transfer is disabled.";
         sim.Simulator.EnableHeatTransfer = false;
         var manager = new FurnaceBlockManager(sim.World);
         sim.Simulator.SetFurnaceManager(manager);
@@ -312,6 +314,7 @@ public class FurnaceTests
         foreach (var (dir, bx, by, checkX, checkY) in directions)
         {
             using var sim = new SimulationFixture(32, 32);
+            sim.Description = $"A furnace block facing {dir} should heat a stone cell placed at its emitting edge in that direction.";
             sim.Simulator.EnableHeatTransfer = false;
             var manager = new FurnaceBlockManager(sim.World);
             sim.Simulator.SetFurnaceManager(manager);
@@ -338,6 +341,7 @@ public class FurnaceTests
         // Block at (0,0) facing Right, block at (16,0) facing Left.
         // The gap is x=8..15 (8 cells wide). Material in the gap gets heat from both sides.
         using var sim = new SimulationFixture(32, 32);
+        sim.Description = "Two facing furnace blocks with a gap between them should heat stone cells in the channel above ambient temperature.";
         sim.Simulator.EnableHeatTransfer = true;
         var manager = new FurnaceBlockManager(sim.World);
         sim.Simulator.SetFurnaceManager(manager);
@@ -371,6 +375,7 @@ public class FurnaceTests
 
         // Setup 1: single wall — only one block emitting to (8,7)
         using var sim1 = new SimulationFixture(32, 32);
+        sim1.Description = "Single furnace block heating a stone cell to establish baseline equilibrium temperature.";
         sim1.Simulator.EnableHeatTransfer = true;
         var manager1 = new FurnaceBlockManager(sim1.World);
         sim1.Simulator.SetFurnaceManager(manager1);
@@ -379,6 +384,7 @@ public class FurnaceTests
 
         // Setup 2: two blocks whose emission edges intersect at (8,7)
         using var sim2 = new SimulationFixture(32, 32);
+        sim2.Description = "Two furnace blocks with overlapping emission edges should heat a stone cell hotter than a single block.";
         sim2.Simulator.EnableHeatTransfer = true;
         var manager2 = new FurnaceBlockManager(sim2.World);
         sim2.Simulator.SetFurnaceManager(manager2);
@@ -406,6 +412,7 @@ public class FurnaceTests
         // The cell at (8,7) gets emission from both blocks (+2/frame), reaching ~190° equil.
         // Contain the water so it can't flow away.
         using var sim = new SimulationFixture(32, 32);
+        sim.Description = "Water in a doubly-heated furnace cell should boil into steam or reach 100+ degrees.";
         sim.Simulator.EnableHeatTransfer = true;
         var manager = new FurnaceBlockManager(sim.World);
         sim.Simulator.SetFurnaceManager(manager);
@@ -454,6 +461,7 @@ public class FurnaceTests
         // Cells at x=12..15, y=4..7 get emission from both block (8,8) and block (16,0).
         // The enclosure traps heat — neighbors are also hot, reducing conduction drain.
         using var sim = new SimulationFixture(32, 32);
+        sim.Description = "IronOre inside a 3-wall furnace enclosure should melt into MoltenIron or solidify into Iron after reaching 200 degrees.";
         sim.Simulator.EnableHeatTransfer = true;
         var manager = new FurnaceBlockManager(sim.World);
         sim.Simulator.SetFurnaceManager(manager);
@@ -490,6 +498,7 @@ public class FurnaceTests
         // Melting IronOre -> MoltenIron should be 1:1 conservation.
         // Use the same 2-wall setup as the melting test.
         using var sim = new SimulationFixture(32, 32);
+        sim.Description = "Melting IronOre in a furnace should produce exactly one MoltenIron or Iron cell, conserving the total iron-related material count.";
         sim.Simulator.EnableHeatTransfer = true;
         var manager = new FurnaceBlockManager(sim.World);
         sim.Simulator.SetFurnaceManager(manager);
@@ -521,6 +530,7 @@ public class FurnaceTests
     {
         // Sand placed above a furnace block should not pass through.
         using var sim = new SimulationFixture(32, 32);
+        sim.Description = "Sand resting on top of a furnace block should not fall through the block into its interior.";
         var manager = new FurnaceBlockManager(sim.World);
         sim.Simulator.SetFurnaceManager(manager);
 
@@ -548,6 +558,7 @@ public class FurnaceTests
     {
         // Furnace material should not move under gravity.
         using var sim = new SimulationFixture(32, 32);
+        sim.Description = "Furnace material should remain static and not move under gravity after 100 simulation frames.";
         var manager = new FurnaceBlockManager(sim.World);
         sim.Simulator.SetFurnaceManager(manager);
 
@@ -568,6 +579,7 @@ public class FurnaceTests
     public void MultipleFurnaceBlocks_IndependentHeating()
     {
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Two independent furnace blocks at different positions should each heat their own emitting edge above ambient.";
         sim.Simulator.EnableHeatTransfer = true;
         var manager = new FurnaceBlockManager(sim.World);
         sim.Simulator.SetFurnaceManager(manager);
@@ -597,6 +609,7 @@ public class FurnaceTests
     public void RemoveOneBlock_OtherContinues()
     {
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "After removing one of two furnace blocks, the remaining block should continue to heat its emitting edge.";
         sim.Simulator.EnableHeatTransfer = true;
         var manager = new FurnaceBlockManager(sim.World);
         sim.Simulator.SetFurnaceManager(manager);
@@ -628,6 +641,7 @@ public class FurnaceTests
     {
         // A block facing Right at (0,0) should emit heat to all 8 cells: (8,0) through (8,7)
         using var sim = new SimulationFixture(32, 32);
+        sim.Description = "A furnace block facing right should emit heat to all 8 stone cells along its emitting edge, not just some of them.";
         sim.Simulator.EnableHeatTransfer = false; // isolate direct emission
         var manager = new FurnaceBlockManager(sim.World);
         sim.Simulator.SetFurnaceManager(manager);
@@ -654,6 +668,7 @@ public class FurnaceTests
     {
         // If two adjacent blocks share an edge, furnace should not heat other furnace cells
         using var sim = new SimulationFixture(32, 32);
+        sim.Description = "Adjacent furnace blocks sharing an edge should not waste heat on each other; furnace cells at the shared edge stay at initial temperature.";
         sim.Simulator.EnableHeatTransfer = false;
         var manager = new FurnaceBlockManager(sim.World);
         sim.Simulator.SetFurnaceManager(manager);
@@ -677,6 +692,7 @@ public class FurnaceTests
     {
         // Ghost blocks should not emit heat since they aren't materialized
         using var sim = new SimulationFixture(32, 32);
+        sim.Description = "A ghost furnace block (placed over soft terrain) should not emit heat to its emitting edge.";
         sim.Simulator.EnableHeatTransfer = false;
         var manager = new FurnaceBlockManager(sim.World);
         sim.Simulator.SetFurnaceManager(manager);
@@ -713,6 +729,7 @@ public class FurnaceTests
     public void FurnaceBlock_ReachesTemperatureEquilibrium()
     {
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "A stone cell heated by one furnace block should reach a stable equilibrium temperature that stops changing between successive time windows.";
         sim.Simulator.EnableHeatTransfer = true;
         var manager = new FurnaceBlockManager(sim.World);
         sim.Simulator.SetFurnaceManager(manager);
@@ -750,6 +767,7 @@ public class FurnaceTests
     public void FurnaceEnclosure_AirConductsHeatThroughGap()
     {
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "A stone cell one cell away from a furnace emission edge should receive conducted heat through the intervening air cell and warm above ambient.";
         sim.Simulator.EnableHeatTransfer = true;
         var manager = new FurnaceBlockManager(sim.World);
         sim.Simulator.SetFurnaceManager(manager);

@@ -29,6 +29,7 @@ public class ProcessingOrderEdgeCases
         // We verify this by checking that sand doesn't fall more than maxVelocity
         // cells per frame.
         using var sim = new SimulationFixture(64, 512);
+        sim.Description = "A single sand grain should not fall more than its velocity allows per frame, verifying that frameUpdated prevents double-processing after a cell moves.";
         sim.Fill(0, 511, 64, 1, Materials.Stone);
         sim.Set(32, 0, Materials.Sand);
 
@@ -77,6 +78,7 @@ public class ProcessingOrderEdgeCases
         for (int mode = 0; mode < 2; mode++)
         {
             using var sim = new SimulationFixture(128, 128);
+            sim.Description = $"A row of 28 sand grains should be fully conserved after settling in {(mode == 1 ? "4-pass" : "flat")} processing mode.";
             sim.Simulator.UseFourPassGrouping = mode == 1;
 
             sim.Fill(0, 127, 128, 1, Materials.Stone);
@@ -99,6 +101,7 @@ public class ProcessingOrderEdgeCases
         // bottom grain falls first, then next grain falls into vacated spot.
         // After 1 frame, all grains in a column should advance by 1.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "A vertical column of 5 sand grains should all cascade down by 1 cell in a single frame due to bottom-to-top processing.";
         sim.Fill(0, 63, 64, 1, Materials.Stone);
 
         // Stack 5 sand vertically with air below
@@ -128,6 +131,7 @@ public class ProcessingOrderEdgeCases
         for (int mode = 0; mode < 2; mode++)
         {
             using var sim = new SimulationFixture(128, 128);
+            sim.Description = $"Mixed sand and water should both be fully conserved after settling in {(mode == 1 ? "4-pass" : "flat")} processing mode.";
             sim.Simulator.UseFourPassGrouping = mode == 1;
 
             sim.Fill(0, 120, 128, 8, Materials.Stone);
@@ -147,6 +151,7 @@ public class ProcessingOrderEdgeCases
     private static int RunAndGetFinalY(bool useFourPass)
     {
         using var sim = new SimulationFixture(64, 128);
+        sim.Description = $"A single sand grain dropped from y=10 should settle to the same final Y position every run in {(useFourPass ? "4-pass" : "flat")} mode.";
         sim.Simulator.UseFourPassGrouping = useFourPass;
         sim.Fill(0, 127, 64, 1, Materials.Stone);
         sim.Set(32, 10, Materials.Sand);

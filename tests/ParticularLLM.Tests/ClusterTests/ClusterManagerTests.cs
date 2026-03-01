@@ -428,6 +428,7 @@ public class ClusterManagerTests
     public void Pipeline_IntegratedWithCellSimulator()
     {
         var sim = new SimulationFixture(64, 64);
+        sim.Description = "A cluster dropped above a stone floor should fall under gravity and settle, with all its IronOre pixels synced to the grid.";
         var manager = new ClusterManager();
         sim.Simulator.SetClusterManager(manager);
 

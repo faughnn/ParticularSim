@@ -98,6 +98,9 @@ public static class HtmlExporter
     /* Sidebar */
     #sidebar { width: 280px; min-width: 280px; background: #16213e; border-right: 1px solid #334; display: flex; flex-direction: column; height: 100vh; }
     #sidebar h2 { padding: 16px; font-size: 14px; color: #8892b0; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #334; }
+    #search-input { margin: 8px 16px; padding: 6px 10px; background: #111; border: 1px solid #445; color: #e0e0e0; border-radius: 4px; font-size: 13px; font-family: inherit; outline: none; }
+    #search-input:focus { border-color: #5a7abf; }
+    #search-input::placeholder { color: #556; }
     #scenario-list { flex: 1; overflow-y: auto; }
     .scenario-group { padding: 8px 0; }
     .scenario-group-label { padding: 4px 16px; font-size: 11px; color: #5a6785; text-transform: uppercase; letter-spacing: 1px; }
@@ -108,6 +111,7 @@ public static class HtmlExporter
     .dot.unreviewed { background: #555; }
     .dot.pass { background: #4caf50; }
     .dot.fail { background: #f44336; }
+    .dot.retest { background: #ff9800; }
 
     /* Filter bar */
     #filter-bar { display: flex; gap: 4px; padding: 8px 16px; border-bottom: 1px solid #334; }
@@ -191,9 +195,11 @@ public static class HtmlExporter
     <body>
     <div id="sidebar">
       <h2>Scenarios</h2>
+      <input type="text" id="search-input" placeholder="Search scenarios...  [/]" oninput="buildSidebar()">
       <div id="filter-bar">
         <button id="btn-filter-all" onclick="setFilter('all')">All</button>
         <button id="btn-filter-unreviewed" onclick="setFilter('unreviewed')">Unreviewed</button>
+        <button id="btn-filter-retest" onclick="setFilter('retest')">Retest</button>
         <button id="btn-filter-fail" onclick="setFilter('fail')">Failed</button>
         <button id="btn-next-queued" onclick="jumpNextUnreviewed()" title="Tab">Next [Tab]</button>
       </div>
@@ -456,6 +462,8 @@ public static class HtmlExporter
     let currentFilter = localStorage.getItem(FILTER_KEY) || 'auto';
     function getEffectiveFilter() {
       if (currentFilter === 'auto') {
+        const hasRetest = SCENARIOS.some(s => (reviewState[s.name] || {}).status === 'retest');
+        if (hasRetest) return 'retest';
         const hasUnreviewed = SCENARIOS.some(s => {
           const st = (reviewState[s.name] || {}).status;
           return st !== 'pass' && st !== 'fail';
@@ -472,11 +480,12 @@ public static class HtmlExporter
     function matchesFilter(scenarioName, filter) {
       const st = (reviewState[scenarioName] || {}).status || 'unreviewed';
       if (filter === 'all') return true;
-      if (filter === 'unreviewed') return st !== 'pass' && st !== 'fail';
+      if (filter === 'unreviewed') return st === 'unreviewed' || !st;
+      if (filter === 'retest') return st === 'retest';
       if (filter === 'fail') return st === 'fail';
       return true;
     }
-    function isUnreviewed(scenarioName) {
+    function needsReview(scenarioName) {
       const st = (reviewState[scenarioName] || {}).status;
       return st !== 'pass' && st !== 'fail';
     }
@@ -486,14 +495,17 @@ public static class HtmlExporter
       const list = document.getElementById('scenario-list');
       list.innerHTML = '';
       const filter = getEffectiveFilter();
+      const searchTerm = (document.getElementById('search-input').value || '').toLowerCase();
       // Update filter button states
       document.getElementById('btn-filter-all').className = filter === 'all' ? 'active' : '';
       document.getElementById('btn-filter-unreviewed').className = filter === 'unreviewed' ? 'active' : '';
+      document.getElementById('btn-filter-retest').className = filter === 'retest' ? 'active' : '';
       document.getElementById('btn-filter-fail').className = filter === 'fail' ? 'active' : '';
 
       let lastCat = null;
       SCENARIOS.forEach((s, i) => {
         if (!matchesFilter(s.name, filter)) return;
+        if (searchTerm && !s.name.toLowerCase().includes(searchTerm)) return;
         if (s.category !== lastCat) {
           lastCat = s.category;
           const g = document.createElement('div');
@@ -741,11 +753,11 @@ public static class HtmlExporter
     // --- Navigation helpers ---
     function findNextUnreviewed(afterIdx) {
       for (let i = afterIdx + 1; i < SCENARIOS.length; i++) {
-        if (isUnreviewed(SCENARIOS[i].name)) return i;
+        if (needsReview(SCENARIOS[i].name)) return i;
       }
       // Wrap around
       for (let i = 0; i <= afterIdx; i++) {
-        if (isUnreviewed(SCENARIOS[i].name)) return i;
+        if (needsReview(SCENARIOS[i].name)) return i;
       }
       return -1;
     }
@@ -790,15 +802,29 @@ public static class HtmlExporter
     }
 
     // --- Export / Import ---
-    function exportReview() {
+    async function exportReview() {
       const report = SCENARIOS.map(s => {
         const r = reviewState[s.name] || {};
         return { name: s.name, category: s.category, status: r.status || 'unreviewed', notes: r.notes || '', failFrame: r.failFrame };
       });
-      const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
+      const json = JSON.stringify(report, null, 2);
+      const fileName = `review-${new Date().toISOString().slice(0, 10)}.json`;
+      if (window.showSaveFilePicker) {
+        try {
+          const handle = await showSaveFilePicker({
+            suggestedName: fileName,
+            types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+          });
+          const writable = await handle.createWritable();
+          await writable.write(json);
+          await writable.close();
+          return;
+        } catch (e) { if (e.name === 'AbortError') return; }
+      }
+      const blob = new Blob([json], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `review-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = fileName;
       a.click();
     }
 
@@ -835,6 +861,10 @@ public static class HtmlExporter
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); e.target.blur(); }
         return;
       }
+      if (e.target.id === 'search-input') {
+        if (e.key === 'Escape') { e.target.value = ''; e.target.blur(); buildSidebar(); }
+        return;
+      }
       if (e.target.tagName === 'INPUT') return;
       switch (e.key) {
         case ' ': e.preventDefault(); togglePlay(); break;
@@ -865,6 +895,7 @@ public static class HtmlExporter
         case 'Tab': e.preventDefault(); jumpNextUnreviewed(); break;
         case 'n': case 'N': loadScenario((currentIdx + 1) % SCENARIOS.length); break;
         case 'p': case 'P': loadScenario((currentIdx - 1 + SCENARIOS.length) % SCENARIOS.length); break;
+        case '/': e.preventDefault(); document.getElementById('search-input').focus(); break;
       }
     });
 

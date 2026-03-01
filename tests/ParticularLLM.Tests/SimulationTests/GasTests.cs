@@ -24,6 +24,7 @@ public class GasTests
     {
         // Rule 1: gas rises away from starting position
         using var sim = new SimulationFixture();
+        sim.Description = "A single steam cell should rise upward and vacate its starting position after 200 frames.";
         sim.Set(32, 50, Materials.Steam);
         var counts = sim.SnapshotMaterialCounts();
         sim.StepWithInvariants(200, counts);
@@ -35,6 +36,7 @@ public class GasTests
     {
         // Rule 1+6: gas rises to top row (world boundary acts as ceiling)
         using var sim = new SimulationFixture();
+        sim.Description = "Steam placed near the bottom should rise all the way to the top row of the world when there are no obstacles.";
         sim.Set(32, 60, Materials.Steam);
         var counts = sim.SnapshotMaterialCounts();
         sim.StepWithInvariants(500, counts);
@@ -47,6 +49,7 @@ public class GasTests
     {
         // Rule 7: per-frame conservation with 5 steam cells
         using var sim = new SimulationFixture();
+        sim.Description = "Five steam cells rising through open air should all be conserved with no material lost or duplicated on any frame.";
         int placed = 5;
         for (int i = 0; i < placed; i++)
             sim.Set(30 + i, 50, Materials.Steam);
@@ -63,6 +66,7 @@ public class GasTests
     {
         // Rule 1: gas moves away from start within a few frames
         using var sim = new SimulationFixture();
+        sim.Description = "A steam cell should vacate its starting position after 30 frames of upward movement.";
         sim.Set(32, 32, Materials.Steam);
         var counts = sim.SnapshotMaterialCounts();
         sim.StepWithInvariants(30, counts);
@@ -74,6 +78,7 @@ public class GasTests
     {
         // Rule 6: gas stops below static ceiling
         using var sim = new SimulationFixture();
+        sim.Description = "Steam rising toward a stone ceiling should stop on the row directly below the stone.";
         sim.Fill(0, 10, 64, 1, Materials.Stone);
         sim.Set(32, 50, Materials.Steam);
         var counts = sim.SnapshotMaterialCounts();

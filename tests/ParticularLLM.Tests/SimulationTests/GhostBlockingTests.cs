@@ -31,8 +31,9 @@ public class GhostBlockingTests
     public void GhostWall_BlocksSandFromEntering()
     {
         // Sand falling toward a ghost wall area (contains terrain that hasn't cleared yet)
-        // should be blocked from entering — the sand treats it as solid.
+        // should be blocked from entering -- the sand treats it as solid.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Sand falling toward a ghost wall area containing ground should be blocked from entering, treating the ghost area as solid.";
 
         // Place a ghost wall at y=40 (8x8 block from y=40 to y=47)
         // First fill with Ground so it becomes ghost
@@ -72,9 +73,10 @@ public class GhostBlockingTests
     public void GhostWall_BlocksSandFromEntering_AirArea()
     {
         // Ghost wall placed over Ground, then Ground manually cleared to Air.
-        // Don't call UpdateGhostStates — wall stays ghost.
+        // Don't call UpdateGhostStates -- wall stays ghost.
         // Sand should be blocked from entering the air cells within ghost wall.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Sand falling toward a ghost wall area that has been cleared to air should still be blocked from entering the ghost zone.";
 
         // Place Ground, then ghost wall
         sim.Fill(24, 40, 8, 8, Materials.Ground);
@@ -108,6 +110,7 @@ public class GhostBlockingTests
     {
         // Material already inside a ghost wall area should be able to exit.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Sand already inside a ghost wall area should be able to fall out and escape downward through the ghost boundary.";
 
         // Place Ground, then ghost wall
         sim.Fill(24, 40, 8, 8, Materials.Ground);
@@ -140,6 +143,7 @@ public class GhostBlockingTests
     {
         // Ghost belt area blocks external material.
         using var sim = new SimulationFixture(128, 64);
+        sim.Description = "Sand falling toward a ghost belt area cleared to air should be blocked from entering the ghost zone.";
 
         // Place Ground, then ghost belt
         sim.Fill(24, 40, 8, 8, Materials.Ground);
@@ -173,6 +177,7 @@ public class GhostBlockingTests
     {
         // Material inside ghost belt can exit.
         using var sim = new SimulationFixture(128, 64);
+        sim.Description = "Sand already inside a ghost belt area should be able to fall out and escape downward.";
 
         // Place Ground, then ghost belt
         sim.Fill(24, 40, 8, 8, Materials.Ground);
@@ -203,6 +208,7 @@ public class GhostBlockingTests
     {
         // Multiple sand grains falling toward a ghost wall should all be conserved.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Five sand grains falling toward a ghost wall should all be conserved, none lost at the ghost boundary.";
 
         sim.Fill(24, 40, 8, 8, Materials.Ground);
         var wallMgr = new WallManager(sim.World);
@@ -231,6 +237,7 @@ public class GhostBlockingTests
         // If somehow both water and sand are inside a ghost wall,
         // density displacement should still work normally.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Water and sand both inside a ghost wall should still undergo normal density displacement, with both materials conserved.";
 
         sim.Fill(24, 40, 8, 8, Materials.Ground);
         var wallMgr = new WallManager(sim.World);
@@ -259,6 +266,7 @@ public class GhostBlockingTests
     {
         // Sand blocked by a ghost wall should settle just above it.
         using var sim = new SimulationFixture(64, 64);
+        sim.Description = "Sand dropped onto a full-width ghost wall should settle above the ghost area, with no sand penetrating into the ghost zone.";
 
         // Ghost wall spanning full width at y=48
         sim.Fill(0, 48, 64, 8, Materials.Ground);

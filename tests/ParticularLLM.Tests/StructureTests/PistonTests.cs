@@ -491,6 +491,7 @@ public class PistonTests
     public void Pipeline_PistonPushesSand()
     {
         var sim = new SimulationFixture(128, 128);
+        sim.Description = "A right-pushing piston extends into a sand column, pushes sand rightward, and retracts, conserving all material.";
         var clusterManager = new ClusterManager();
         var pistonManager = new PistonManager();
         pistonManager.SetClusterManager(clusterManager);

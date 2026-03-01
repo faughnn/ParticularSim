@@ -29,6 +29,7 @@ public class GasSpreadTests
     public void Steam_RisesUpward()
     {
         using var sim = new SimulationFixture();
+        sim.Description = "A single steam cell placed mid-world should rise upward from its starting position.";
         sim.Set(32, 50, Materials.Steam);
 
         var counts = sim.SnapshotMaterialCounts();
@@ -44,6 +45,7 @@ public class GasSpreadTests
     public void Steam_RisesToTopOfWorld()
     {
         using var sim = new SimulationFixture();
+        sim.Description = "A single steam cell should rise all the way to near the top of the world (y<=5).";
         sim.Set(32, 60, Materials.Steam);
 
         var counts = sim.SnapshotMaterialCounts();
@@ -60,6 +62,7 @@ public class GasSpreadTests
     public void Steam_StopsAtStoneCeiling()
     {
         using var sim = new SimulationFixture();
+        sim.Description = "Steam rising toward a stone ceiling should stop just below it, not pass through.";
         sim.Fill(0, 20, 64, 1, Materials.Stone); // Ceiling
         sim.Set(32, 50, Materials.Steam);
 
@@ -80,6 +83,7 @@ public class GasSpreadTests
     {
         // Steam blocked directly above should try diagonal upward.
         using var sim = new SimulationFixture();
+        sim.Description = "Steam blocked by a small stone overhang should navigate around it diagonally and rise above the obstacle.";
 
         // Small overhang blocking direct rise
         sim.Fill(30, 30, 5, 1, Materials.Stone); // Blocks x=30..34 at y=30
@@ -102,6 +106,7 @@ public class GasSpreadTests
     {
         // Steam trapped under a ceiling should spread horizontally (up to 4 cells).
         using var sim = new SimulationFixture();
+        sim.Description = "Multiple steam cells trapped under a stone ceiling should spread horizontally at least as wide as their initial placement.";
 
         sim.Fill(0, 20, 64, 1, Materials.Stone); // Ceiling
 
@@ -130,6 +135,7 @@ public class GasSpreadTests
     public void Steam_MaterialConservation_MultipleParticles()
     {
         using var sim = new SimulationFixture();
+        sim.Description = "An 8x5 block of steam cells rising in open air should all be conserved after 300 frames.";
 
         int steamCount = 0;
         for (int x = 28; x < 36; x++)
@@ -150,6 +156,7 @@ public class GasSpreadTests
     {
         // Steam in a sealed box should be conserved (can't escape).
         using var sim = new SimulationFixture();
+        sim.Description = "Steam placed inside a sealed stone box should remain fully conserved after 500 frames.";
 
         // Sealed box
         sim.Fill(20, 20, 24, 1, Materials.Stone); // Top
@@ -176,6 +183,7 @@ public class GasSpreadTests
     {
         // Steam (density=4) should not displace sand (density=128).
         using var sim = new SimulationFixture();
+        sim.Description = "Steam below sand should not displace the heavier sand; both materials should remain present.";
 
         sim.Fill(0, 63, 64, 1, Materials.Stone);
         sim.Set(32, 30, Materials.Sand);
@@ -193,6 +201,7 @@ public class GasSpreadTests
     {
         // Steam should rise through air but be blocked by stone.
         using var sim = new SimulationFixture();
+        sim.Description = "Steam should pass through a gap in the first stone ceiling but be blocked by a solid second ceiling above.";
 
         // Two layers of stone with gaps
         sim.Fill(0, 20, 64, 1, Materials.Stone);
@@ -220,6 +229,7 @@ public class GasSpreadTests
         // Steam should accelerate upward via fractional gravity.
         // Measure early frames to see acceleration before hitting max velocity.
         using var sim = new SimulationFixture(64, 512);
+        sim.Description = "Steam in a tall world should accelerate upward via fractional gravity, covering more than 1 cell per frame on average.";
 
         sim.Set(32, 500, Materials.Steam);
 
